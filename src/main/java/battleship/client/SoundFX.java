@@ -19,6 +19,7 @@ public final class SoundFX {
                     case "MISS" -> new int[]{210};
                     case "SUNK" -> new int[]{740,600,450};
                     case "INVITE" -> new int[]{500,670};
+                    case "ONLINE" -> new int[]{600,880};
                     case "WIN" -> new int[]{523,659,784,1046};
                     case "LOSS" -> new int[]{440,330,220};
                     default -> new int[]{520};
