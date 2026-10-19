@@ -30,6 +30,26 @@ public final class GameDialog {
         dialog.setVisible(true);
     }
 
+    public static boolean confirm(Window owner,String title,String message){
+        final boolean[] accepted={false};
+        JDialog dialog=new JDialog(owner,title,Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        RoundedPanel body=new RoundedPanel(null,Theme.PANEL);
+        body.setPreferredSize(new Dimension(480,230));
+        JLabel heading=Components.label(title,21,Theme.CYAN,true);
+        heading.setBounds(26,24,420,37);body.add(heading);
+        JLabel detail=Components.label("<html><div style='width:400px'>"+safe(message)+"</div></html>",15,Theme.TEXT,false);
+        detail.setBounds(26,78,420,72);body.add(detail);
+        JButton yes=Components.button("XÁC NHẬN",Theme.RED);
+        yes.setBounds(265,164,185,45);body.add(yes);
+        yes.addActionListener(e->{accepted[0]=true;dialog.dispose();});
+        JButton no=Components.button("HỦY",Theme.PANEL2);
+        no.setBounds(26,164,210,45);body.add(no);
+        no.addActionListener(e->dialog.dispose());
+        dialog.setContentPane(body);dialog.pack();dialog.setLocationRelativeTo(owner);dialog.setVisible(true);
+        return accepted[0];
+    }
+
     private static String safe(String s){
         return (s==null?"":s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
     }
