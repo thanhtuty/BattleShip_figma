@@ -17,6 +17,7 @@ public class BattleshipServer {
     private final UserDAO users=new UserDAO();
     private final Map<String,Set<String>> invitations=new ConcurrentHashMap<>();
     private final MatchDAO matches=new MatchDAO();
+    private final ScheduledExecutorService clock=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"turn-clock");t.setDaemon(true);return t;});
 
     public BattleshipServer(int port){this.port=port;}
 
@@ -27,6 +28,7 @@ public class BattleshipServer {
 
     public void start()throws Exception{
         System.out.println("SQL Server: "+(DbConfig.ping()?"CONNECTED":"NOT CONNECTED"));
+        clock.scheduleAtFixedRate(this::tick,1,1,TimeUnit.SECONDS);
         try(ServerSocket ss=new ServerSocket(port)){
             System.out.println("Battleship TCP server listening on "+port);
             while(true) new Thread(new PlayerSession(ss.accept(),this)).start();
@@ -37,7 +39,8 @@ public class BattleshipServer {
         switch(m.type()){
             case "REGISTER" -> register(s,m);
             case "LOGIN" -> login(s,m);
-            case "LOGOUT" -> {s.send("ERROR","Hãy đóng client để kết thúc phiên.");}
+            case "LOGOUT" -> logout(s);
+            case "LEAVE" -> leave(s);
             case "ONLINE" -> sendOnline(s);
             case "CHALLENGE" -> challenge(s,m.get(0));
             case "ACCEPT" -> accept(s,m.get(0));
@@ -117,6 +120,7 @@ public class BattleshipServer {
             r.p1.send("GAME_START",first);
             r.p2.send("GAME_START",first);
             sendFleetState(r);
+            sendTurn(r);
         }
     }
 
@@ -132,25 +136,77 @@ public class BattleshipServer {
         matches.event(r.id,s.userId(),"ATTACK",row,col,result==Board.Shot.SUNK?"SUNK:"+shipName:result.name());
 
         s.send("ATTACK_RESULT",s.username(),String.valueOf(row),String.valueOf(col),result.name(),shipName);
-        target.send("ATTACK_RESULT",s.username(),String.valueOf(row),String.valueOf(col),result.name());
+        target.send("ATTACK_RESULT",s.username(),String.valueOf(row),String.valueOf(col),result.name(),shipName);
 
         sendFleetState(r);
         if(enemy.allSunk()){
-            r.finished=true;
-            matches.finish(r.id,s.userId(),target.userId());
-            matches.event(r.id,s.userId(),"GAME_OVER",null,null,"WIN");
-            s.send("GAME_OVER","WIN",target.username());
-            target.send("GAME_OVER","LOSS",s.username());
-            s.matchId(null);target.matchId(null);rooms.remove(r.id);
+            endMatch(r,s,target,"ALL_SUNK");
             return;
         }
 
         // Luật chuẩn bài: trúng giữ lượt, trượt đổi lượt.
-        if(result==Board.Shot.MISS) r.currentUserId=target.userId();
-        String current=r.currentUserId==r.p1.userId()?r.p1.username():r.p2.username();
-        r.p1.send("TURN",current);r.p2.send("TURN",current);
+        r.nextTurn(result==Board.Shot.MISS?target:s);
+        sendTurn(r);
     }
 
+
+
+    private synchronized void tick(){
+        try{
+            for(MatchRoom r:new ArrayList<>(rooms.values())){
+                if(!r.started||r.finished)continue;
+                long remaining=r.turnDeadline-System.currentTimeMillis();
+                if(remaining>0){
+                    r.p1.send("TIMER",String.valueOf((remaining+999)/1000));
+                    r.p2.send("TIMER",String.valueOf((remaining+999)/1000));
+                    continue;
+                }
+                PlayerSession late=r.p1.userId()==r.currentUserId?r.p1:r.p2;
+                int times=r.incrementMisses(late);
+                matches.event(r.id,late.userId(),"TURN_TIMEOUT",null,null,String.valueOf(times));
+                r.p1.send("TURN_TIMEOUT",late.username(),String.valueOf(times));
+                r.p2.send("TURN_TIMEOUT",late.username(),String.valueOf(times));
+                if(times>3){endMatch(r,r.other(late),late,"TIMEOUT");}
+                else{r.nextTurn(r.other(late));sendTurn(r);}
+            }
+        }catch(Exception e){System.err.println("Turn clock: "+e.getMessage());}
+    }
+
+    private void sendTurn(MatchRoom r){
+        String current=r.p1.userId()==r.currentUserId?r.p1.username():r.p2.username();
+        r.p1.send("TURN",current);
+        r.p2.send("TURN",current);
+        r.p1.send("TIMER","15");
+        r.p2.send("TIMER","15");
+    }
+
+    private void endMatch(MatchRoom r,PlayerSession winner,PlayerSession loser,String reason)throws SQLException{
+        if(r.finished)return;
+        matches.finish(r.id,winner.userId(),loser.userId());
+        r.finished=true;
+        matches.event(r.id,loser.userId(),"GAME_OVER",null,null,reason);
+        winner.send("GAME_OVER","WIN",loser.username(),reason);
+        loser.send("GAME_OVER","LOSS",winner.username(),reason);
+        winner.matchId(null);loser.matchId(null);rooms.remove(r.id);
+    }
+
+    private synchronized void leave(PlayerSession s)throws SQLException{
+        MatchRoom r=roomOf(s);
+        if(r.started)endMatch(r,r.other(s),s,"FORFEIT");
+        else{
+            matches.cancel(r.id);
+            r.other(s).send("OPPONENT_LEFT",s.username());
+            r.other(s).matchId(null);s.matchId(null);rooms.remove(r.id);
+        }
+    }
+
+    private synchronized void logout(PlayerSession s)throws SQLException{
+        if(s.matchId()!=null)leave(s);
+        online.remove(s.username(),s);
+        s.user(null);
+        s.send("LOGOUT_OK");
+        broadcastOnline();
+    }
 
     private void sendFleetState(MatchRoom r){
         String a=String.valueOf(r.b1.remainingShips()),b=String.valueOf(r.b2.remainingShips());
