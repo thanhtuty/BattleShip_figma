@@ -311,7 +311,7 @@ public class ClientApp extends JFrame {
         text(mode,"Đối đầu 1 vs 1 trên đại dương",22,72,420,32,21,Theme.CYAN,true);
         text(mode,"Tìm đối thủ hoặc mời bạn bè vào phòng chơi",22,118,430,24,14,Theme.MUTED,false);
         JButton find=button(mode,"TÌM TRẬN NGAY   →",22,154,235,46,Theme.CYAN);
-        find.addActionListener(e->showScreen("match"));
+        find.addActionListener(e->{net.send("ONLINE");showScreen("friends");});
 
         RoundedPanel profile=panel(p,847,224,321,215);
         text(profile,"HỒ SƠ THUYỀN TRƯỞNG",22,20,280,27,17,Theme.TEXT,true);
@@ -343,7 +343,7 @@ public class ClientApp extends JFrame {
         JButton quickBtn=button(quick,"BẮT ĐẦU TÌM",22,137,206,50,Theme.CYAN);
         JButton refresh=button(quick,"LÀM MỚI",242,137,150,50,Theme.PANEL2);
         quickBtn.addActionListener(e->quickChallenge());
-        refresh.addActionListener(e->net.send("ONLINE"));
+        refresh.addActionListener(e->{net.send("ONLINE");net.send("FRIENDS");});
 
         RoundedPanel status=panel(p,809,215,359,230);
         text(status,"TRẠNG THÁI MẠNG",22,20,280,28,18,Theme.TEXT,true);
@@ -565,7 +565,7 @@ public class ClientApp extends JFrame {
 
     private void quickChallenge(){
         if(onlineUsers.isEmpty()){info("Hiện chưa có đối thủ online.");return;}
-        net.send("CHALLENGE",onlineUsers.get(0));
+        showScreen("friends");
     }
 
     private void leaveMatch(){
@@ -639,6 +639,7 @@ public class ClientApp extends JFrame {
                         net.send("ONLINE");
                         net.send("PROFILE");
                         showScreen("lobby");
+                        net.send("HISTORY");
                     }
                     case "PROFILE_DATA" -> updateProfile(m);
                     case "DISCONNECTED" -> {
@@ -744,6 +745,7 @@ public class ClientApp extends JFrame {
                         boolean win=m.get(0).equals("WIN");
                         SoundFX.play(win?"WIN":"LOSS");
                         matchId=-1;
+                        net.send("HISTORY");
                         resultTitle.setText(win?"★  CHIẾN THẮNG  ★":"THẤT BẠI");
                         resultTitle.setForeground(win?Theme.GREEN:Theme.RED);
                         resultPlayers.setText(username.toUpperCase()+"      VS      "+m.get(1).toUpperCase());
