@@ -73,12 +73,12 @@ public class MatchDAO {
         String sql = """
             SELECT TOP 20 m.MatchId,
                    CASE WHEN m.Player1Id=? THEN u2.Username ELSE u1.Username END Opponent,
-                   CASE WHEN m.WinnerId=? THEN 'WIN' ELSE 'LOSS' END Result,
+                   CASE WHEN m.Status='CANCELLED' THEN 'CANCELLED' WHEN m.WinnerId=? THEN 'WIN' ELSE 'LOSS' END Result,
                    m.FinishedAt
             FROM Matches m
             JOIN Users u1 ON u1.UserId=m.Player1Id
             JOIN Users u2 ON u2.UserId=m.Player2Id
-            WHERE (m.Player1Id=? OR m.Player2Id=?) AND m.Status='FINISHED'
+            WHERE (m.Player1Id=? OR m.Player2Id=?) AND m.Status IN ('FINISHED','CANCELLED')
             ORDER BY m.FinishedAt DESC
             """;
         try(Connection c=DbConfig.getConnection();PreparedStatement ps=c.prepareStatement(sql)){
