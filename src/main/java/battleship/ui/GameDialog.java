@@ -30,6 +30,23 @@ public final class GameDialog {
         dialog.setVisible(true);
     }
 
+    public static void toast(Window owner,String message,boolean warning){
+        JDialog dialog=new JDialog(owner);
+        dialog.setUndecorated(true);
+        RoundedPanel panel=new RoundedPanel(null,Theme.PANEL);
+        panel.setPreferredSize(new Dimension(480,108));
+        JLabel title=Components.label(warning?"CẢNH BÁO LƯỢT CHƠI":"CẬP NHẬT TRẬN",16,warning?Theme.GOLD:Theme.CYAN,true);
+        title.setBounds(18,12,440,30);panel.add(title);
+        JLabel text=Components.label("<html><div style='width:432px'>"+safe(message)+"</div></html>",13,Theme.TEXT,false);
+        text.setBounds(18,47,438,51);panel.add(text);
+        dialog.setContentPane(panel);dialog.pack();
+        dialog.setLocationRelativeTo(owner);
+        dialog.setLocation(dialog.getX(),dialog.getY()-240);
+        javax.swing.Timer expiry=new javax.swing.Timer(2500,e->dialog.dispose());
+        expiry.setRepeats(false);expiry.start();
+        dialog.setVisible(true);
+    }
+
     public static boolean confirm(Window owner,String title,String message){
         final boolean[] accepted={false};
         JDialog dialog=new JDialog(owner,title,Dialog.ModalityType.APPLICATION_MODAL);
