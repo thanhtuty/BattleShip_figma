@@ -143,3 +143,20 @@ BATTLESHIP_PORT
 - **SoundFX**: âm thanh tạo trong Java cho bắn, trúng, trượt, chìm tàu, lời mời, thắng/thua; có nút bật/tắt tại Cài đặt
 
 **Chạy lại cả Server và Client sau khi cập nhật** vì protocol đã thay đổi.
+
+## Kiểm tra chất lượng và trạng thái đồng bộ
+
+GitHub Actions `Java Maven Build` chạy `mvn clean verify` trên Java 17 cho mỗi commit.
+Các test JUnit ở `src/test/java` kiểm tra kiểm tra đội tàu hợp lệ, chồng biên, số tàu chìm và bộ đếm lượt trễ.
+Xem kết quả: https://github.com/thanhtuty/BattleShip_figma/actions
+
+- `MATCH_STATE`: Server gửi matchId, lượt hiện tại, thời gian còn lại, username/số tàu/số lượt bỏ của mỗi phía sau mọi lần đổi lượt.
+- `TURN`: tên người chơi và số giây còn lại trên Server (không phải epoch trên máy Client).
+- `FLEET_STATE`: số tàu sống sau phát bắn.
+- `GAME_OVER`: server đã commit SQL trước khi thông báo thắng/thua, kể cả thua do rời trận hoặc quá giờ.
+- `THÁCH ĐẤU NGẪU NHIÊN`: mời một tài khoản đang online ngẫu nhiên, **không phải** hàng đợi matchmaking.
+- `Friendships` được khai báo trong `database/01_BattleShipDB.sql`. Chạy lại script (có kiểm tra tồn tại bảng) nếu database cũ chưa có bảng này.
+
+### Giới hạn kiểm thử
+GitHub Actions chỉ kiểm tra Java/Maven và unit test, chưa chạy hai Client thực cùng SQL Server.
+Để kiểm tra tích hợp: chạy SQL Server, một Server TCP, hai Client, rồi thử Login, Challenge, Ready, ATTACK, timeout, LEAVE, Logout và kiểm tra lịch sử cùng bảng xếp hạng.
