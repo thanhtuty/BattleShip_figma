@@ -70,3 +70,15 @@ SELECT
     END AS WinRate
 FROM dbo.Users;
 GO
+
+IF OBJECT_ID('dbo.Friendships','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Friendships (
+        UserA INT NOT NULL REFERENCES dbo.Users(UserId),
+        UserB INT NOT NULL REFERENCES dbo.Users(UserId),
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        CONSTRAINT PK_Friendships PRIMARY KEY(UserA,UserB),
+        CONSTRAINT CK_Friendships_Ordered CHECK(UserA < UserB)
+    );
+END
+GO
