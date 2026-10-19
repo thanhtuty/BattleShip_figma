@@ -631,7 +631,7 @@ public class ClientApp extends JFrame {
             try{
                 switch(m.type()){
                     case "LEFT_OK" -> {matchId=-1;turnClockActive=false;clearFleet();net.send("ONLINE");showScreen("lobby");}
-                    case "LOGOUT_OK" -> {username="";matchId=-1;pendingInvite="";onlineUsers.clear();refreshGlobalLabels();showScreen("login");}
+                    case "LOGOUT_OK" -> {username="";matchId=-1;turnClockActive=false;timerUntil=0;pendingInvite="";onlineUsers.clear();friendNames.clear();refreshGlobalLabels();showScreen("login");}
                     case "FRIEND_ADDED" -> info("Đã kết bạn với "+m.get(0));
                     case "FRIENDS_LIST" -> {friendNames.clear();if(!m.get(0).isBlank())java.util.Collections.addAll(friendNames,m.get(0).split(","));refreshOnlineRows();}
                     case "LOGIN_OK" -> {
@@ -646,6 +646,7 @@ public class ClientApp extends JFrame {
                     }
                     case "PROFILE_DATA" -> updateProfile(m);
                     case "DISCONNECTED" -> {
+                        matchId=-1;turnClockActive=false;timerUntil=0;receivedOnlineSnapshot=false;
                         username="";
                         onlineUsers.clear();
                         refreshGlobalLabels();
@@ -766,7 +767,7 @@ public class ClientApp extends JFrame {
                         resultPlayers.setText(username.toUpperCase()+"      VS      "+m.get(1).toUpperCase());
                         showScreen("result");
                     }
-                    case "OPPONENT_LEFT" -> {matchId=-1;info("Đối thủ đã thoát khỏi trận.");net.send("ONLINE");showScreen("lobby");}
+                    case "OPPONENT_LEFT" -> {matchId=-1;turnClockActive=false;timerUntil=0;GameDialog.toast(this,"Đối thủ đã rời phòng chờ.",true);net.send("ONLINE");showScreen("lobby");}
                     case "RANKING_BEGIN" -> {
                         rankCursor=0;
                         for(int i=0;i<5;i++){rankName[i].setText("—");rankScore[i].setText("— điểm");rankRate[i].setText("—%");}
@@ -824,7 +825,8 @@ public class ClientApp extends JFrame {
             row.setMaximumSize(new Dimension(887,67));
             row.setBackground(Theme.PANEL);
             row.setBorder(BorderFactory.createEmptyBorder(13,15,13,15));
-            JLabel result=Components.label((h[2].equals("WIN")?"THẮNG":"THUA")+" • "+h[1],16,h[2].equals("WIN")?Theme.GREEN:Theme.RED,true);
+            String display=h[2].equals("WIN")?"THẮNG":h[2].equals("CANCELLED")?"ĐÃ HỦY":"THUA";
+            JLabel result=Components.label(display+" • "+h[1],16,h[2].equals("WIN")?Theme.GREEN:h[2].equals("CANCELLED")?Theme.MUTED:Theme.RED,true);
             JLabel detail=Components.label("Match #"+h[0]+"  •  "+h[3],13,Theme.MUTED,false);
             row.add(result,BorderLayout.WEST);row.add(detail,BorderLayout.EAST);
             historyRows.add(row);
