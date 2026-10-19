@@ -29,6 +29,12 @@ public final class FleetCodec {
         if(ps.size()!=5) throw new IllegalArgumentException("FLEET_MUST_HAVE_5_SHIPS");
         int[] lens=ps.stream().mapToInt(Placement::len).sorted().toArray();
         if(!Arrays.equals(lens,new int[]{2,2,3,4,5})) throw new IllegalArgumentException("INVALID_SHIP_LENGTHS");
+        Map<String,Integer> required=Map.of("Carrier",5,"Battleship",4,"Cruiser",3,"Destroyer",2,"Patrol",2);
+        Set<String> names=new HashSet<>();
+        for(Placement p:ps){
+            if(!required.containsKey(p.name())||required.get(p.name())!=p.len()||!names.add(p.name()))
+                throw new IllegalArgumentException("INVALID_SHIP_IDENTITY");
+        }
         Board b=new Board(10);
         for(Placement p:ps) if(!b.place(p.name(),p.len(),p.row(),p.col(),p.horizontal()))
             throw new IllegalArgumentException("INVALID_PLACEMENT");
