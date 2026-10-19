@@ -555,10 +555,35 @@ public class ClientApp extends JFrame {
         net.send("CHALLENGE",onlineUsers.get(0));
     }
 
-    private void randomFleet(){
+    private void leaveMatch(){
+        if(matchId<0)return;
+        int choice=JOptionPane.showConfirmDialog(this,"Rời trận sẽ bị xử thua sau khi bắt đầu. Bạn chắc chắn?","Xác nhận rời trận",JOptionPane.YES_NO_OPTION);
+        if(choice==JOptionPane.YES_OPTION)net.send("LEAVE");
+    }
+
+    private void clearFleet(){
         fleet.clear();
         placementBoard.clear(true);
         ownBoard.clear(true);
+    }
+
+    private void placeShip(int row,int col){
+        if(shipSelect==null||matchId<0)return;
+        String name=(String)shipSelect.getSelectedItem();
+        if(name==null||fleet.stream().anyMatch(f->f.name().equals(name)))return;
+        int length=switch(name){case "Carrier"->5;case "Battleship"->4;case "Cruiser"->3;default->2;};
+        battleship.game.Board test=new battleship.game.Board(10);
+        for(var f:fleet)test.place(f.name(),f.len(),f.row(),f.col(),f.horizontal());
+        if(!test.canPlace(row,col,length,horizontal)){error("Tàu vượt biên hoặc bị chồng lên tàu khác");return;}
+        fleet.add(new FleetCodec.Placement(name,length,row,col,horizontal));
+        for(int i=0;i<length;i++){
+            int rr=row+(horizontal?0:i),cc=col+(horizontal?i:0);
+            placementBoard.ship(rr,cc);ownBoard.ship(rr,cc);
+        }
+    }
+
+    private void randomFleet(){
+        clearFleet();
         int[] lens={5,4,3,2,2};
         String[] names={"Carrier","Battleship","Cruiser","Destroyer","Patrol"};
         boolean[][] used=new boolean[10][10];
@@ -591,6 +616,7 @@ public class ClientApp extends JFrame {
         SwingUtilities.invokeLater(()->{
             try{
                 switch(m.type()){
+                    case "LOGOUT_OK" -> {username="";matchId=-1;onlineUsers.clear();refreshGlobalLabels();showScreen("login");}
                     case "LOGIN_OK" -> {
                         username=m.get(0);
                         if(lobbyUserLabel!=null)lobbyUserLabel.setText(username);
@@ -618,11 +644,13 @@ public class ClientApp extends JFrame {
                             for(String n:m.get(0).split(",")) if(!n.equals(username)) onlineUsers.add(n);
                         }
                         if(onlineCountLabel!=null)onlineCountLabel.setText("Người chơi online: "+onlineUsers.size());
+                        if(playerSelect!=null){playerSelect.removeAllItems();for(String name:onlineUsers)playerSelect.addItem(name);}
                         for(int i=0;i<onlineNameLabel.length;i++)if(onlineNameLabel[i]!=null)onlineNameLabel[i].setText(i<onlineUsers.size()?onlineUsers.get(i):"—");
                         if(challengeField!=null && challengeField.getText().isBlank() && !onlineUsers.isEmpty())
                             challengeField.setText(onlineUsers.get(0));
                     }
                     case "INVITE" -> {
+                        SoundFX.play("INVITE");
                         pendingInvite=m.get(0);
                         if(inviteLabel!=null)inviteLabel.setText(pendingInvite);
                         showScreen("friends");
@@ -630,6 +658,7 @@ public class ClientApp extends JFrame {
                     case "INVITE_REJECTED" -> info(m.get(0)+" đã từ chối lời mời.");
                     case "MATCH_CREATED" -> {
                         matchId=Long.parseLong(m.get(0));
+                        clearFleet();
                         opponent=m.get(1);
                         if(roomPlayer1!=null)roomPlayer1.setText(username);
                         if(roomPlayer2!=null)roomPlayer2.setText(opponent);
@@ -655,6 +684,8 @@ public class ClientApp extends JFrame {
                         if(battleStatus!=null)battleStatus.setText(m.get(0).equals(username)?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");
                         showScreen("battle");
                     }
+                    case "TIMER" -> {if(clockLabel!=null)clockLabel.setText(String.format("00:%02d",Integer.parseInt(m.get(0))));}
+                    case "TURN_TIMEOUT" -> appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
                     case "TURN" -> {
                         boolean mine=m.get(0).equals(username);
                         if(battleStatus!=null){battleStatus.setText(mine?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");battleStatus.setForeground(mine?Theme.CYAN:Theme.GOLD);}
@@ -668,6 +699,7 @@ public class ClientApp extends JFrame {
                     }
                     case "ATTACK_RESULT" -> {
                         String shooter=m.get(0);
+                        SoundFX.play(m.get(3).equals("SUNK")?"SUNK":m.get(3).equals("HIT")?"HIT":"MISS");
                         int r=Integer.parseInt(m.get(1)),c=Integer.parseInt(m.get(2));
                         boolean hit=!m.get(3).equals("MISS");
                         boolean mine=shooter.equals(username);
@@ -686,12 +718,14 @@ public class ClientApp extends JFrame {
                     case "GAME_OVER" -> {
                         net.send("PROFILE");
                         boolean win=m.get(0).equals("WIN");
+                        SoundFX.play(win?"WIN":"LOSS");
+                        matchId=-1;
                         resultTitle.setText(win?"★  CHIẾN THẮNG  ★":"THẤT BẠI");
                         resultTitle.setForeground(win?Theme.GREEN:Theme.RED);
                         resultPlayers.setText(username.toUpperCase()+"      VS      "+m.get(1).toUpperCase());
                         showScreen("result");
                     }
-                    case "OPPONENT_LEFT" -> {info("Đối thủ đã thoát khỏi trận.");net.send("ONLINE");showScreen("lobby");}
+                    case "OPPONENT_LEFT" -> {matchId=-1;info("Đối thủ đã thoát khỏi trận.");net.send("ONLINE");showScreen("lobby");}
                     case "RANKING_BEGIN" -> {
                         rankCursor=0;
                         for(int i=0;i<5;i++){rankName[i].setText("—");rankScore[i].setText("— điểm");rankRate[i].setText("—%");}
