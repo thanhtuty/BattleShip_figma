@@ -21,18 +21,19 @@ public class GameClient implements Closeable {
         closing=false;
         Socket connected=new Socket(host,port);
         socket=connected;
-        in=new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out=new PrintWriter(new OutputStreamWriter(socket.getOutputStream()),true);
+        BufferedReader reader=new BufferedReader(new InputStreamReader(connected.getInputStream()));
+        in=reader;
+        out=new PrintWriter(new OutputStreamWriter(connected.getOutputStream()),true);
         Thread t=new Thread(()->{
             try{
                 String line;
-                while((line=in.readLine())!=null){
+                while((line=reader.readLine())!=null){
                     Protocol.Message m=Protocol.parse(line);
                     for(var l:listeners) l.accept(m);
                 }
             }catch(IOException ignored){} finally {
                 try{connected.close();}catch(IOException ignored){}
-                if(!closing){
+                if(socket==connected&&!closing){
                     Protocol.Message event=new Protocol.Message("DISCONNECTED",java.util.List.of("Mất kết nối TCP tới server"));
                     for(var listener:listeners)listener.accept(event);
                 }
