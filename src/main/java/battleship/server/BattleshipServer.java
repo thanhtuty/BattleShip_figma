@@ -17,6 +17,7 @@ public class BattleshipServer {
     private final UserDAO users=new UserDAO();
     private final Map<String,Set<String>> invitations=new ConcurrentHashMap<>();
     private final MatchDAO matches=new MatchDAO();
+    private final FriendDAO friends=new FriendDAO();
     private final ScheduledExecutorService clock=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"turn-clock");t.setDaemon(true);return t;});
 
     public BattleshipServer(int port){this.port=port;}
@@ -50,6 +51,8 @@ public class BattleshipServer {
             case "RANKING" -> ranking(s);
             case "HISTORY" -> history(s);
             case "PROFILE" -> profile(s);
+            case "ADD_FRIEND" -> addFriend(s,m.get(0));
+            case "FRIENDS" -> friends(s);
             case "PING" -> s.send("PONG");
             default -> s.send("ERROR","UNKNOWN_COMMAND");
         }
@@ -72,6 +75,7 @@ public class BattleshipServer {
         s.send("LOGIN_OK",u.username(),String.valueOf(u.id()),String.valueOf(u.rating()));
         profile(s);
         broadcastOnline();
+        friends(s);
     }
 
     private void challenge(PlayerSession s,String target){
@@ -214,6 +218,22 @@ public class BattleshipServer {
         String a=String.valueOf(r.b1.remainingShips()),b=String.valueOf(r.b2.remainingShips());
         r.p1.send("FLEET_STATE",r.p1.username(),a,r.p2.username(),b);
         r.p2.send("FLEET_STATE",r.p1.username(),a,r.p2.username(),b);
+    }
+
+    private void addFriend(PlayerSession s,String target)throws SQLException{
+        requireLogin(s);
+        if(!online.containsKey(target)){s.send("ERROR","Người chơi không online");return;}
+        if(friends.add(s.userId(),target)){
+            s.send("FRIEND_ADDED",target);
+            PlayerSession other=online.get(target);
+            if(other!=null){other.send("FRIEND_ADDED",s.username());friends(other);}
+            friends(s);
+        }else s.send("ERROR","Không tìm thấy người chơi hoặc không thể kết bạn");
+    }
+
+    private void friends(PlayerSession s)throws SQLException{
+        requireLogin(s);
+        s.send("FRIENDS_LIST",String.join(",",friends.list(s.userId())));
     }
 
     private void profile(PlayerSession s)throws SQLException{
