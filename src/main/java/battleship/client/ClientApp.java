@@ -706,7 +706,7 @@ public class ClientApp extends JFrame {
                     case "TURN_TIMEOUT" -> {
                         appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
                         if(clockLabel!=null)clockLabel.setText("00:00");
-                        info((m.get(0).equals(username)?"Bạn":"Đối thủ")+" đã hết 15 giây và bỏ lượt ("+m.get(1)+"/4). Lượt chuyển sang đối thủ.");
+                        GameDialog.toast(this,(m.get(0).equals(username)?"Bạn":"Đối thủ")+" đã hết 15 giây và bỏ lượt ("+m.get(1)+"/4). Chuyển lượt.",true);
                         if(m.get(0).equals(username))myMissedTurns=Integer.parseInt(m.get(1));else enemyMissedTurns=Integer.parseInt(m.get(1));
                         if(missedCountLabel!=null)missedCountLabel.setText("Bỏ lượt: Bạn "+myMissedTurns+"/4 • Đối thủ "+enemyMissedTurns+"/4");
                         if(eventBanner!=null)eventBanner.setText("Hết giờ: "+m.get(0)+" ("+m.get(1)+"/4)");
@@ -734,7 +734,7 @@ public class ClientApp extends JFrame {
                         String ship=m.get(4);
                         String details="["+(mine?"Bạn":"Đối thủ")+"] "+coord+" → "+resultText;
                         if(m.get(3).equals("SUNK"))details+=": "+shipDisplayName(ship);
-                        if(hit)appendBattleLog(details);
+                        if(hit){appendBattleLog(details);if(m.get(3).equals("SUNK"))GameDialog.toast(this,(mine?"Bạn đã đánh chìm ":"Đối thủ đã đánh chìm ")+shipDisplayName(ship),false);}
                         if(eventBanner!=null){
                             eventBanner.setText("<html>"+(m.get(3).equals("SUNK")?(mine?"Bạn đánh chìm ":"Đối thủ đánh chìm ")+shipDisplayName(ship):details)+"</html>");
                             eventBanner.setForeground(m.get(3).equals("SUNK")?Theme.RED:hit?Theme.GREEN:Theme.MUTED);
