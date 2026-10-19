@@ -128,6 +128,7 @@ public class BattleshipServer {
         MatchRoom r=roomOf(s);
         if(!r.started||r.finished){s.send("ERROR","Trận chưa bắt đầu hoặc đã kết thúc");return;}
         if(r.currentUserId!=s.userId()){s.send("ERROR","Chưa đến lượt của bạn");return;}
+        if(System.currentTimeMillis()>=r.turnDeadline){s.send("ERROR","Đã hết thời gian của lượt này");return;}
         Board enemy=r.enemyBoard(s);
         Board.Shot result=enemy.attack(row,col);
         if(result==Board.Shot.ALREADY){s.send("ERROR","Ô này đã bắn");return;}
@@ -197,6 +198,7 @@ public class BattleshipServer {
             matches.cancel(r.id);
             r.other(s).send("OPPONENT_LEFT",s.username());
             r.other(s).matchId(null);s.matchId(null);rooms.remove(r.id);
+            s.send("LEFT_OK");
         }
     }
 
