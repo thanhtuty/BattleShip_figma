@@ -44,21 +44,28 @@ public class MatchDAO {
         } catch (SQLException e) {System.err.println("Match event write failed: "+e.getMessage());}
     }
 
-    public void finish(long matchId, int winner, int loser) throws SQLException {
-        try (Connection c=DbConfig.getConnection()) {
+    public void finish(long matchId,int winner,int loser) throws SQLException {
+        try(Connection c=DbConfig.getConnection()){
             c.setAutoCommit(false);
-            try (PreparedStatement ps=c.prepareStatement(
-                    "UPDATE Matches SET WinnerId=?,Status='FINISHED',FinishedAt=SYSDATETIME() WHERE MatchId=?")) {
-                ps.setInt(1,winner);ps.setLong(2,matchId);ps.executeUpdate();
-            }
-            try (PreparedStatement ps=c.prepareStatement("UPDATE Users SET Wins=Wins+1,Rating=Rating+30 WHERE UserId=?")) {
-                ps.setInt(1,winner);ps.executeUpdate();
-            }
-            try (PreparedStatement ps=c.prepareStatement("UPDATE Users SET Losses=Losses+1,Rating=CASE WHEN Rating>=20 THEN Rating-20 ELSE 0 END WHERE UserId=?")) {
-                ps.setInt(1,loser);ps.executeUpdate();
-            }
-            c.commit();
-        } catch(SQLException e){throw e;}
+            try{
+                int changed;
+                try(PreparedStatement p=c.prepareStatement(
+                    "UPDATE Matches SET WinnerId=?,Status='FINISHED',FinishedAt=SYSDATETIME() WHERE MatchId=? AND Status IN ('IN_GAME','PREPARING')")){
+                    p.setInt(1,winner);p.setLong(2,matchId);changed=p.executeUpdate();
+                }
+                if(changed!=1){c.rollback();throw new SQLException("Match already finished or unavailable: "+matchId);}
+                try(PreparedStatement p=c.prepareStatement("UPDATE Users SET Wins=Wins+1,Rating=Rating+30 WHERE UserId=?")){
+                    p.setInt(1,winner);
+                    if(p.executeUpdate()!=1)throw new SQLException("Winner unavailable");
+                }
+                try(PreparedStatement p=c.prepareStatement(
+                    "UPDATE Users SET Losses=Losses+1,Rating=CASE WHEN Rating>=20 THEN Rating-20 ELSE 0 END WHERE UserId=?")){
+                    p.setInt(1,loser);
+                    if(p.executeUpdate()!=1)throw new SQLException("Loser unavailable");
+                }
+                c.commit();
+            }catch(SQLException e){c.rollback();throw e;}
+        }
     }
 
     public List<HistoryRow> history(int userId) throws SQLException {
