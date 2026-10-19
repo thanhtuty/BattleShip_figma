@@ -7,6 +7,7 @@ public class Board {
     private final int size;
     private final List<Ship> ships = new ArrayList<>();
     private final boolean[][] fired;
+    private String lastSunkShip="";
 
     public Board(int size){ this.size=size; this.fired=new boolean[size][size]; }
 
@@ -30,7 +31,11 @@ public class Board {
         if(r<0||c<0||r>=size||c>=size) throw new IllegalArgumentException("OUT_OF_BOARD");
         if(fired[r][c]) return Shot.ALREADY;
         fired[r][c]=true;
-        for(Ship s:ships) if(s.hit(r,c)) return s.sunk()?Shot.SUNK:Shot.HIT;
+        lastSunkShip="";
+        for(Ship s:ships) if(s.hit(r,c)) {
+            if(s.sunk()){lastSunkShip=s.name();return Shot.SUNK;}
+            return Shot.HIT;
+        }
         return Shot.MISS;
     }
 
@@ -38,4 +43,6 @@ public class Board {
     public boolean hasShip(int r,int c){ return ships.stream().anyMatch(s->s.contains(r,c)); }
     public boolean fired(int r,int c){ return fired[r][c]; }
     public int shipCount(){ return ships.size(); }
+    public long remainingShips(){ return ships.stream().filter(s->!s.sunk()).count(); }
+    public String lastSunkShip(){ return lastSunkShip; }
 }
