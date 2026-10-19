@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 
 public class GameClient implements Closeable {
     private Socket socket;
+    private volatile boolean closing=false;
     private BufferedReader in;
     private PrintWriter out;
     private final CopyOnWriteArrayList<Consumer<Protocol.Message>> listeners=new CopyOnWriteArrayList<>();
@@ -17,6 +18,7 @@ public class GameClient implements Closeable {
 
     public void connect(String host,int port)throws IOException{
         if(isConnected())return;
+        closing=false;
         socket=new Socket(host,port);
         in=new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out=new PrintWriter(new OutputStreamWriter(socket.getOutputStream()),true);
@@ -27,7 +29,13 @@ public class GameClient implements Closeable {
                     Protocol.Message m=Protocol.parse(line);
                     for(var l:listeners) l.accept(m);
                 }
-            }catch(IOException ignored){}
+            }catch(IOException ignored){} finally {
+                try{socket.close();}catch(IOException ignored){}
+                if(!closing){
+                    Protocol.Message event=new Protocol.Message("DISCONNECTED",java.util.List.of("Mất kết nối TCP tới server"));
+                    for(var listener:listeners)listener.accept(event);
+                }
+            }
         },"server-listener");
         t.setDaemon(true);t.start();
     }
@@ -37,5 +45,5 @@ public class GameClient implements Closeable {
         out.println(Protocol.msg(type,fields));
     }
     public boolean isConnected(){return socket!=null&&socket.isConnected()&&!socket.isClosed();}
-    @Override public void close()throws IOException{if(socket!=null)socket.close();}
+    @Override public void close()throws IOException{closing=true;if(socket!=null)socket.close();}
 }
