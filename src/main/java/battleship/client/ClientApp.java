@@ -82,7 +82,7 @@ public class ClientApp extends JFrame {
         net.addListener(this::message);
         placementBoard.onClick(this::placeShip);
         enemyBoard.onClick((r,c)->{
-            if(net.isConnected()) net.send("ATTACK",String.valueOf(r),String.valueOf(c));
+            if(net.isConnected()){SoundFX.play("FIRE");net.send("ATTACK",String.valueOf(r),String.valueOf(c));}
         });
 
         addWindowListener(new WindowAdapter(){
@@ -616,7 +616,8 @@ public class ClientApp extends JFrame {
         SwingUtilities.invokeLater(()->{
             try{
                 switch(m.type()){
-                    case "LOGOUT_OK" -> {username="";matchId=-1;onlineUsers.clear();refreshGlobalLabels();showScreen("login");}
+                    case "LEFT_OK" -> {matchId=-1;clearFleet();showScreen("lobby");}
+                    case "LOGOUT_OK" -> {username="";matchId=-1;pendingInvite="";onlineUsers.clear();refreshGlobalLabels();showScreen("login");}
                     case "LOGIN_OK" -> {
                         username=m.get(0);
                         if(lobbyUserLabel!=null)lobbyUserLabel.setText(username);
@@ -685,7 +686,10 @@ public class ClientApp extends JFrame {
                         showScreen("battle");
                     }
                     case "TIMER" -> {if(clockLabel!=null)clockLabel.setText(String.format("00:%02d",Integer.parseInt(m.get(0))));}
-                    case "TURN_TIMEOUT" -> appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
+                    case "TURN_TIMEOUT" -> {
+                        appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
+                        if(eventBanner!=null)eventBanner.setText("Hết giờ: "+m.get(0)+" ("+m.get(1)+"/4)");
+                    }
                     case "TURN" -> {
                         boolean mine=m.get(0).equals(username);
                         if(battleStatus!=null){battleStatus.setText(mine?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");battleStatus.setForeground(mine?Theme.CYAN:Theme.GOLD);}
