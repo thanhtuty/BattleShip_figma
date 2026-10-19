@@ -15,6 +15,7 @@ public class BattleshipServer {
     private final Map<String,PlayerSession> online=new ConcurrentHashMap<>();
     private final Map<Long,MatchRoom> rooms=new ConcurrentHashMap<>();
     private final UserDAO users=new UserDAO();
+    private final Map<String,Set<String>> invitations=new ConcurrentHashMap<>();
     private final MatchDAO matches=new MatchDAO();
 
     public BattleshipServer(int port){this.port=port;}
@@ -45,6 +46,7 @@ public class BattleshipServer {
             case "ATTACK" -> attack(s,m.intAt(0),m.intAt(1));
             case "RANKING" -> ranking(s);
             case "HISTORY" -> history(s);
+            case "PROFILE" -> profile(s);
             case "PING" -> s.send("PONG");
             default -> s.send("ERROR","UNKNOWN_COMMAND");
         }
@@ -65,6 +67,7 @@ public class BattleshipServer {
         if(online.containsKey(u.username())){s.send("LOGIN_FAIL","Tài khoản đang đăng nhập");return;}
         s.user(u);online.put(u.username(),s);
         s.send("LOGIN_OK",u.username(),String.valueOf(u.id()),String.valueOf(u.rating()));
+        profile(s);
         broadcastOnline();
     }
 
@@ -74,6 +77,7 @@ public class BattleshipServer {
         if(t==null){s.send("ERROR","Người chơi không online");return;}
         if(t==s){s.send("ERROR","Không thể tự thách đấu");return;}
         if(s.matchId()!=null||t.matchId()!=null){s.send("ERROR","Một trong hai người đang ở trong trận");return;}
+        invitations.computeIfAbsent(t.username(),k->ConcurrentHashMap.newKeySet()).add(s.username());
         t.send("INVITE",s.username());
         s.send("INFO","Đã gửi lời mời tới "+target);
     }
@@ -82,6 +86,8 @@ public class BattleshipServer {
         requireLogin(s);
         PlayerSession c=online.get(challenger);
         if(c==null){s.send("ERROR","Người thách đấu đã offline");return;}
+        Set<String> pending=invitations.get(s.username());
+        if(pending==null || !pending.remove(challenger)){s.send("ERROR","Lời mời không tồn tại hoặc đã hết hạn");return;}
         if(s.matchId()!=null||c.matchId()!=null){s.send("ERROR","Trận không còn khả dụng");return;}
         long id=matches.create(c.userId(),s.userId());
         MatchRoom r=new MatchRoom(id,c,s);rooms.put(id,r);
@@ -91,12 +97,15 @@ public class BattleshipServer {
     }
 
     private void reject(PlayerSession s,String challenger){
+        Set<String> pending=invitations.get(s.username());
+        if(pending!=null)pending.remove(challenger);
         PlayerSession c=online.get(challenger);
         if(c!=null)c.send("INVITE_REJECTED",s.username());
     }
 
     private void ready(PlayerSession s,String fleet)throws SQLException{
         MatchRoom r=roomOf(s);
+        if(r.started || r.ready(s)){s.send("ERROR","Đã sẵn sàng hoặc trận đã bắt đầu");return;}
         Board b=FleetCodec.toBoard(fleet);
         r.setReady(s,b);
         matches.event(r.id,s.userId(),"READY",null,null,null);
@@ -139,6 +148,13 @@ public class BattleshipServer {
         r.p1.send("TURN",current);r.p2.send("TURN",current);
     }
 
+
+    private void profile(PlayerSession s)throws SQLException{
+        requireLogin(s);
+        var u=users.profile(s.userId());
+        if(u!=null)s.send("PROFILE_DATA",u.username(),String.valueOf(u.wins()),String.valueOf(u.losses()),String.valueOf(u.rating()));
+    }
+
     private void ranking(PlayerSession s)throws SQLException{
         List<UserDAO.RankRow> list=users.ranking(20);
         s.send("RANKING_BEGIN",String.valueOf(list.size()));
@@ -169,7 +185,11 @@ public class BattleshipServer {
     private void broadcastOnline(){for(PlayerSession s:online.values())sendOnline(s);}
 
     public void disconnect(PlayerSession s){
-        if(s.username()!=null) online.remove(s.username(),s);
+        if(s.username()!=null){
+            online.remove(s.username(),s);
+            invitations.remove(s.username());
+            for(Set<String> pending:invitations.values())pending.remove(s.username());
+        }
         Long mid=s.matchId();
         if(mid!=null){
             MatchRoom r=rooms.remove(mid);
