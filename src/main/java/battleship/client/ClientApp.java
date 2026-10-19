@@ -37,6 +37,8 @@ public class ClientApp extends JFrame {
     private final java.util.Set<String> friendNames=new java.util.HashSet<>();
     private final java.util.List<String[]> storedHistory=new ArrayList<>();
     private long timerUntil=0;
+    private boolean turnClockActive=false;
+    private JLabel matchInfoLabel;
     private final javax.swing.Timer visualTimer=new javax.swing.Timer(100,e->updateClock());
     private JLabel roomPlayer1;
     private JLabel roomPlayer2;
@@ -459,7 +461,7 @@ public class ClientApp extends JFrame {
         text(p,"TRẬN ĐẤU",48,109,430,42,30,Theme.TEXT,true);
         text(p,"Chọn ô trên vùng biển đối thủ để khai hỏa",50,157,550,25,14,Theme.MUTED,false);
         battleStatus=text(p,"ĐANG CHỜ LƯỢT",958,121,196,30,12,Theme.TEXT,true);
-        clockLabel=text(p,"00:15",830,121,120,30,20,Theme.GOLD,true);
+        clockLabel=text(p,"--:--",830,121,120,30,20,Theme.GOLD,true);
 
         text(p,"HẠM ĐỘI CỦA BẠN",80,211,300,28,17,Theme.CYAN,true);
         text(p,"VÙNG BIỂN ĐỐI THỦ",746,211,300,28,17,Theme.GOLD,true);
@@ -470,8 +472,7 @@ public class ClientApp extends JFrame {
 
         RoundedPanel mid=panel(p,426,240,302,413);
         text(mid,"CẬP NHẬT TRẬN ĐẤU",14,14,276,30,16,Theme.CYAN,true);
-        JLabel matchLabel=text(mid,"Match ID: cập nhật khi ghép trận",14,47,274,21,11,Theme.MUTED,false);
-        matchLabel.setName("matchInfoLabel");
+        matchInfoLabel=text(mid,"Match ID: —",14,47,274,21,11,Theme.MUTED,false);
         myShipsLabel=text(mid,"BẠN CÒN: 5/5 TÀU",14,81,274,25,14,Theme.GREEN,true);
         enemyShipsLabel=text(mid,"ĐỐI THỦ CÒN: 5/5 TÀU",14,111,274,25,14,Theme.GOLD,true);
         eventBanner=text(mid,"Đang chờ khai hỏa...",14,148,274,39,12,Theme.CYAN,true);
@@ -570,7 +571,7 @@ public class ClientApp extends JFrame {
 
     private void leaveMatch(){
         if(matchId<0)return;
-        if(GameDialog.confirm(this,"RỜI TRẬN","Rời trận khi đang thi đấu sẽ bị tính thua. Bạn có chắc chắn?"))net.send("LEAVE");
+        if(GameDialog.confirm(this,"RỜI TRẬN","Rời trận khi đang thi đấu sẽ bị tính thua. Bạn có chắc chắn?")){enemyBoard.setInteractive(false);net.send("LEAVE");}
     }
 
     private void clearFleet(){
@@ -628,7 +629,7 @@ public class ClientApp extends JFrame {
         SwingUtilities.invokeLater(()->{
             try{
                 switch(m.type()){
-                    case "LEFT_OK" -> {matchId=-1;clearFleet();showScreen("lobby");}
+                    case "LEFT_OK" -> {matchId=-1;turnClockActive=false;clearFleet();net.send("ONLINE");showScreen("lobby");}
                     case "LOGOUT_OK" -> {username="";matchId=-1;pendingInvite="";onlineUsers.clear();refreshGlobalLabels();showScreen("login");}
                     case "FRIEND_ADDED" -> info("Đã kết bạn với "+m.get(0));
                     case "FRIENDS_LIST" -> {friendNames.clear();if(!m.get(0).isBlank())java.util.Collections.addAll(friendNames,m.get(0).split(","));refreshOnlineRows();}
@@ -655,11 +656,13 @@ public class ClientApp extends JFrame {
                         showScreen("login");
                     }
                     case "ONLINE_LIST" -> {
+                        java.util.Set<String> previous=new java.util.HashSet<>(onlineUsers);
                         onlineUsers.clear();
                         if(!m.get(0).isBlank()){
                             for(String n:m.get(0).split(",")) if(!n.equals(username)) onlineUsers.add(n);
                         }
                         if(onlineCountLabel!=null)onlineCountLabel.setText("Người chơi online: "+onlineUsers.size());
+                        if(!username.isBlank() && !previous.isEmpty() && onlineUsers.stream().anyMatch(n->!previous.contains(n)))SoundFX.play("ONLINE");
                         if(playerSelect!=null){playerSelect.removeAllItems();for(String name:onlineUsers)playerSelect.addItem(name);}
                         refreshOnlineRows();
                         for(int i=0;i<onlineNameLabel.length;i++)if(onlineNameLabel[i]!=null)onlineNameLabel[i].setText(i<onlineUsers.size()?onlineUsers.get(i):"—");
@@ -678,6 +681,7 @@ public class ClientApp extends JFrame {
                         myMissedTurns=0;enemyMissedTurns=0;
                         clearFleet();
                         opponent=m.get(1);
+                        if(matchInfoLabel!=null)matchInfoLabel.setText("MATCH #"+matchId+" • "+username+" vs "+opponent);
                         if(roomPlayer1!=null)roomPlayer1.setText(username);
                         if(roomPlayer2!=null)roomPlayer2.setText(opponent);
                         if(roomState1!=null)roomState1.setText("● Chưa sẵn sàng");
@@ -693,6 +697,8 @@ public class ClientApp extends JFrame {
                     }
                     case "GAME_START" -> {
                         enemyBoard.clear(false);
+                        timerUntil=0;turnClockActive=false;
+                        if(clockLabel!=null)clockLabel.setText("--:--");
                         if(battleLog!=null)battleLog.setText("");
                         if(myShipsLabel!=null)myShipsLabel.setText("BẠN CÒN: 5/5 TÀU");
                         if(enemyShipsLabel!=null)enemyShipsLabel.setText("ĐỐI THỦ CÒN: 5/5 TÀU");
@@ -702,9 +708,10 @@ public class ClientApp extends JFrame {
                         if(battleStatus!=null)battleStatus.setText(m.get(0).equals(username)?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");
                         showScreen("battle");
                     }
-                    case "TIMER" -> {timerUntil=System.currentTimeMillis()+Integer.parseInt(m.get(0))*1000L;updateClock();}
+                    case "TIMER" -> {if(!turnClockActive){timerUntil=System.currentTimeMillis()+Integer.parseInt(m.get(0))*1000L;turnClockActive=true;}updateClock();}
                     case "TURN_TIMEOUT" -> {
                         appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
+                        turnClockActive=false;timerUntil=0;
                         if(clockLabel!=null)clockLabel.setText("00:00");
                         GameDialog.toast(this,(m.get(0).equals(username)?"Bạn":"Đối thủ")+" đã hết 15 giây và bỏ lượt ("+m.get(1)+"/4). Chuyển lượt.",true);
                         if(m.get(0).equals(username))myMissedTurns=Integer.parseInt(m.get(1));else enemyMissedTurns=Integer.parseInt(m.get(1));
@@ -712,6 +719,7 @@ public class ClientApp extends JFrame {
                         if(eventBanner!=null)eventBanner.setText("Hết giờ: "+m.get(0)+" ("+m.get(1)+"/4)");
                     }
                     case "TURN" -> {
+                        timerUntil=Long.parseLong(m.get(1));turnClockActive=true;updateClock();
                         boolean mine=m.get(0).equals(username);
                         if(battleStatus!=null){battleStatus.setText(mine?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");battleStatus.setForeground(mine?Theme.CYAN:Theme.GOLD);}
                         enemyBoard.setInteractive(mine);
@@ -721,6 +729,7 @@ public class ClientApp extends JFrame {
                         int enemyCount=m.get(0).equals(username)?Integer.parseInt(m.get(3)):Integer.parseInt(m.get(1));
                         if(myShipsLabel!=null)myShipsLabel.setText("BẠN CÒN: "+myCount+"/5 TÀU");
                         if(enemyShipsLabel!=null)enemyShipsLabel.setText("ĐỐI THỦ CÒN: "+enemyCount+"/5 TÀU");
+                        if(eventBanner!=null && (myCount<5||enemyCount<5))eventBanner.setToolTipText("Bạn: "+myCount+" tàu; Đối thủ: "+enemyCount+" tàu");
                     }
                     case "ATTACK_RESULT" -> {
                         String shooter=m.get(0);
@@ -744,7 +753,7 @@ public class ClientApp extends JFrame {
                         net.send("PROFILE");
                         boolean win=m.get(0).equals("WIN");
                         SoundFX.play(win?"WIN":"LOSS");
-                        matchId=-1;
+                        matchId=-1;turnClockActive=false;timerUntil=0;
                         net.send("HISTORY");
                         resultTitle.setText(win?"★  CHIẾN THẮNG  ★":"THẤT BẠI");
                         resultTitle.setForeground(win?Theme.GREEN:Theme.RED);
@@ -773,7 +782,7 @@ public class ClientApp extends JFrame {
     }
 
     private void updateClock(){
-        if(clockLabel==null||matchId<0)return;
+        if(clockLabel==null||matchId<0||!turnClockActive)return;
         long ms=Math.max(0,timerUntil-System.currentTimeMillis());
         clockLabel.setText(String.format("00:%02d",(ms+999)/1000));
         clockLabel.setForeground(ms<=5000?Theme.RED:Theme.GOLD);
