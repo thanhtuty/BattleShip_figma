@@ -341,9 +341,9 @@ public class ClientApp extends JFrame {
         text(p,"Chọn phương thức bắt đầu trận đấu",253,158,500,26,15,Theme.MUTED,false);
 
         RoundedPanel quick=panel(p,251,215,537,230);
-        text(quick,"GHÉP TRẬN NGẪU NHIÊN",22,20,400,28,18,Theme.TEXT,true);
+        text(quick,"THÁCH ĐẤU NGẪU NHIÊN",22,20,400,28,18,Theme.TEXT,true);
         text(quick,"Bàn chơi 10 × 10 • 2 người",22,75,300,26,16,Theme.MUTED,false);
-        JButton quickBtn=button(quick,"BẮT ĐẦU TÌM",22,137,206,50,Theme.CYAN);
+        JButton quickBtn=button(quick,"MỜI NGẪU NHIÊN",22,137,206,50,Theme.CYAN);
         JButton refresh=button(quick,"LÀM MỚI",242,137,150,50,Theme.PANEL2);
         quickBtn.addActionListener(e->quickChallenge());
         refresh.addActionListener(e->{net.send("ONLINE");net.send("FRIENDS");});
@@ -567,7 +567,8 @@ public class ClientApp extends JFrame {
 
     private void quickChallenge(){
         if(onlineUsers.isEmpty()){info("Hiện chưa có đối thủ online.");return;}
-        showScreen("friends");
+        String selected=onlineUsers.get(ThreadLocalRandom.current().nextInt(onlineUsers.size()));
+        net.send("CHALLENGE",selected);
     }
 
     private void leaveMatch(){
