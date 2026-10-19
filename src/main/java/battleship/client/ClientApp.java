@@ -569,6 +569,13 @@ public class ClientApp extends JFrame {
                         showScreen("lobby");
                     }
                     case "PROFILE_DATA" -> updateProfile(m);
+                    case "DISCONNECTED" -> {
+                        username="";
+                        onlineUsers.clear();
+                        refreshGlobalLabels();
+                        showScreen("login");
+                        error(m.get(0));
+                    }
                     case "LOGIN_FAIL","REGISTER_FAIL","ERROR" -> error(m.get(0));
                     case "REGISTER_OK" -> {
                         info("Đăng ký thành công. Hãy đăng nhập.");
@@ -624,13 +631,14 @@ public class ClientApp extends JFrame {
                         if(shooter.equals(username))enemyBoard.shot(r,c,hit);else ownBoard.shot(r,c,hit);
                     }
                     case "GAME_OVER" -> {
+                        net.send("PROFILE");
                         boolean win=m.get(0).equals("WIN");
                         resultTitle.setText(win?"★  CHIẾN THẮNG  ★":"THẤT BẠI");
                         resultTitle.setForeground(win?Theme.GREEN:Theme.RED);
                         resultPlayers.setText(username.toUpperCase()+"      VS      "+m.get(1).toUpperCase());
                         showScreen("result");
                     }
-                    case "OPPONENT_LEFT" -> {info("Đối thủ đã thoát khỏi trận.");showScreen("lobby");}
+                    case "OPPONENT_LEFT" -> {info("Đối thủ đã thoát khỏi trận.");net.send("ONLINE");showScreen("lobby");}
                     case "RANKING_BEGIN" -> {
                         rankCursor=0;
                         for(int i=0;i<5;i++){rankName[i].setText("—");rankScore[i].setText("— điểm");rankRate[i].setText("—%");}
