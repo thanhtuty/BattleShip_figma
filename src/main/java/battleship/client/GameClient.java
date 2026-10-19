@@ -19,7 +19,8 @@ public class GameClient implements Closeable {
     public void connect(String host,int port)throws IOException{
         if(isConnected())return;
         closing=false;
-        socket=new Socket(host,port);
+        Socket connected=new Socket(host,port);
+        socket=connected;
         in=new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out=new PrintWriter(new OutputStreamWriter(socket.getOutputStream()),true);
         Thread t=new Thread(()->{
@@ -30,7 +31,7 @@ public class GameClient implements Closeable {
                     for(var l:listeners) l.accept(m);
                 }
             }catch(IOException ignored){} finally {
-                try{socket.close();}catch(IOException ignored){}
+                try{connected.close();}catch(IOException ignored){}
                 if(!closing){
                     Protocol.Message event=new Protocol.Message("DISCONNECTED",java.util.List.of("Mất kết nối TCP tới server"));
                     for(var listener:listeners)listener.accept(event);
@@ -41,9 +42,10 @@ public class GameClient implements Closeable {
     }
 
     public void send(String type,String...fields){
-        if(out==null) throw new IllegalStateException("Chưa kết nối server");
+        if(!isConnected()||out==null) throw new IllegalStateException("Chưa kết nối server");
         out.println(Protocol.msg(type,fields));
+        if(out.checkError())throw new IllegalStateException("Không gửi được dữ liệu TCP");
     }
     public boolean isConnected(){return socket!=null&&socket.isConnected()&&!socket.isClosed();}
-    @Override public void close()throws IOException{closing=true;if(socket!=null)socket.close();}
+    @Override public void close()throws IOException{closing=true;if(socket!=null)socket.close();out=null;in=null;}
 }
