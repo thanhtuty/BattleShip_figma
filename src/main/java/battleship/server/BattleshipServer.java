@@ -78,7 +78,7 @@ public class BattleshipServer {
         friends(s);
     }
 
-    private void challenge(PlayerSession s,String target){
+    private synchronized void challenge(PlayerSession s,String target){
         requireLogin(s);
         PlayerSession t=online.get(target);
         if(t==null){s.send("ERROR","Người chơi không online");return;}
@@ -267,7 +267,7 @@ public class BattleshipServer {
     }
     private void broadcastOnline(){for(PlayerSession s:online.values())sendOnline(s);}
 
-    public void disconnect(PlayerSession s){
+    public synchronized void disconnect(PlayerSession s){
         if(s.username()!=null){
             online.remove(s.username(),s);
             invitations.remove(s.username());
@@ -277,10 +277,15 @@ public class BattleshipServer {
         if(mid!=null){
             MatchRoom r=rooms.remove(mid);
             if(r!=null&&!r.finished){
-                matches.cancel(r.id);
                 PlayerSession other=r.other(s);
-                other.send("OPPONENT_LEFT",s.username());
-                other.matchId(null);
+                if(r.started){
+                    try{endMatch(r,other,s,"DISCONNECT");}
+                    catch(SQLException e){System.err.println("Disconnect save failed: "+e.getMessage());matches.cancel(r.id);}
+                }else{
+                    matches.cancel(r.id);
+                    other.send("OPPONENT_LEFT",s.username());
+                    other.matchId(null);
+                }
             }
         }
         s.matchId(null);
