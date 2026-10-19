@@ -41,7 +41,7 @@ public class MatchDAO {
             if(col==null) ps.setNull(5,Types.INTEGER); else ps.setInt(5,col);
             ps.setString(6,value);
             ps.executeUpdate();
-        } catch (SQLException ignored) {}
+        } catch (SQLException e) {System.err.println("Match event write failed: "+e.getMessage());}
     }
 
     public void finish(long matchId, int winner, int loser) throws SQLException {
@@ -58,7 +58,7 @@ public class MatchDAO {
                 ps.setInt(1,loser);ps.executeUpdate();
             }
             c.commit();
-        }
+        } catch(SQLException e){throw e;}
     }
 
     public List<HistoryRow> history(int userId) throws SQLException {
