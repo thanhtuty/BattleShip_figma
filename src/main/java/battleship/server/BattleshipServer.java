@@ -175,9 +175,9 @@ public class BattleshipServer {
 
     private void sendTurn(MatchRoom r){
         String current=r.p1.userId()==r.currentUserId?r.p1.username():r.p2.username();
-        String deadline=String.valueOf(r.turnDeadline);
-        r.p1.send("TURN",current,deadline);
-        r.p2.send("TURN",current,deadline);
+        String remaining=String.valueOf(Math.max(0,(r.turnDeadline-System.currentTimeMillis()+999)/1000));
+        r.p1.send("TURN",current,remaining);
+        r.p2.send("TURN",current,remaining);
     }
 
     private void endMatch(MatchRoom r,PlayerSession winner,PlayerSession loser,String reason)throws SQLException{
