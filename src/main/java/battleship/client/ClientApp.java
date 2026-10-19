@@ -38,6 +38,7 @@ public class ClientApp extends JFrame {
     private final java.util.List<String[]> storedHistory=new ArrayList<>();
     private long timerUntil=0;
     private boolean turnClockActive=false;
+    private boolean receivedOnlineSnapshot=false;
     private JLabel matchInfoLabel;
     private final javax.swing.Timer visualTimer=new javax.swing.Timer(100,e->updateClock());
     private JLabel roomPlayer1;
@@ -635,6 +636,7 @@ public class ClientApp extends JFrame {
                     case "FRIENDS_LIST" -> {friendNames.clear();if(!m.get(0).isBlank())java.util.Collections.addAll(friendNames,m.get(0).split(","));refreshOnlineRows();}
                     case "LOGIN_OK" -> {
                         username=m.get(0);
+                        receivedOnlineSnapshot=false;
                         if(lobbyUserLabel!=null)lobbyUserLabel.setText(username);
                         refreshGlobalLabels();
                         net.send("ONLINE");
@@ -662,7 +664,11 @@ public class ClientApp extends JFrame {
                             for(String n:m.get(0).split(",")) if(!n.equals(username)) onlineUsers.add(n);
                         }
                         if(onlineCountLabel!=null)onlineCountLabel.setText("Người chơi online: "+onlineUsers.size());
-                        if(!username.isBlank() && !previous.isEmpty() && onlineUsers.stream().anyMatch(n->!previous.contains(n)))SoundFX.play("ONLINE");
+                        if(receivedOnlineSnapshot && !username.isBlank() && onlineUsers.stream().anyMatch(n->!previous.contains(n))){
+                            SoundFX.play("ONLINE");
+                            GameDialog.toast(this,"Có người chơi vừa online: "+onlineUsers.stream().filter(n->!previous.contains(n)).findFirst().orElse("Người chơi"),false);
+                        }
+                        receivedOnlineSnapshot=true;
                         if(playerSelect!=null){playerSelect.removeAllItems();for(String name:onlineUsers)playerSelect.addItem(name);}
                         refreshOnlineRows();
                         for(int i=0;i<onlineNameLabel.length;i++)if(onlineNameLabel[i]!=null)onlineNameLabel[i].setText(i<onlineUsers.size()?onlineUsers.get(i):"—");
