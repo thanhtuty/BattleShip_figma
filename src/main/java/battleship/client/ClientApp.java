@@ -38,6 +38,9 @@ public class ClientApp extends JFrame {
     private JLabel roomState2;
     private JLabel battleStatus;
     private JLabel clockLabel;
+    private JLabel missedCountLabel;
+    private int myMissedTurns=0;
+    private int enemyMissedTurns=0;
     private JComboBox<String> playerSelect;
     private JComboBox<String> shipSelect;
     private boolean horizontal=true;
@@ -659,6 +662,7 @@ public class ClientApp extends JFrame {
                     case "INVITE_REJECTED" -> info(m.get(0)+" đã từ chối lời mời.");
                     case "MATCH_CREATED" -> {
                         matchId=Long.parseLong(m.get(0));
+                        myMissedTurns=0;enemyMissedTurns=0;
                         clearFleet();
                         opponent=m.get(1);
                         if(roomPlayer1!=null)roomPlayer1.setText(username);
@@ -688,6 +692,8 @@ public class ClientApp extends JFrame {
                     case "TIMER" -> {if(clockLabel!=null)clockLabel.setText(String.format("00:%02d",Integer.parseInt(m.get(0))));}
                     case "TURN_TIMEOUT" -> {
                         appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
+                        if(m.get(0).equals(username))myMissedTurns=Integer.parseInt(m.get(1));else enemyMissedTurns=Integer.parseInt(m.get(1));
+                        if(missedCountLabel!=null)missedCountLabel.setText("Bỏ lượt: Bạn "+myMissedTurns+"/4 • Đối thủ "+enemyMissedTurns+"/4");
                         if(eventBanner!=null)eventBanner.setText("Hết giờ: "+m.get(0)+" ("+m.get(1)+"/4)");
                     }
                     case "TURN" -> {
