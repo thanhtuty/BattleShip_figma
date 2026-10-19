@@ -32,6 +32,12 @@ public class ClientApp extends JFrame {
     private final JLabel[] statValue=new JLabel[4];
     private JLabel onlineCountLabel;
     private JLabel inviteLabel;
+    private JPanel onlineRows;
+    private JPanel historyRows;
+    private final java.util.Set<String> friendNames=new java.util.HashSet<>();
+    private final java.util.List<String[]> storedHistory=new ArrayList<>();
+    private long timerUntil=0;
+    private final javax.swing.Timer visualTimer=new javax.swing.Timer(100,e->updateClock());
     private JLabel roomPlayer1;
     private JLabel roomPlayer2;
     private JLabel roomState1;
@@ -93,6 +99,7 @@ public class ClientApp extends JFrame {
                 try{net.close();}catch(Exception ignored){}
             }
         });
+        visualTimer.start();
         showScreen("welcome");
     }
 
@@ -281,13 +288,16 @@ public class ClientApp extends JFrame {
             final int idx=i;
             b.addActionListener(e->{
                 if(idx==3)net.send("HISTORY");
+                if(idx==1||idx==2){net.send("ONLINE");net.send("FRIENDS");}
                 if(idx==0)net.send("PROFILE");
                 if(idx==4)net.send("RANKING");
                 showScreen(targets[idx]);
             });
             side.add(b);
         }
-        text(side,"●   Đang kết nối",28,635,160,24,12,Theme.GREEN,true);
+        JButton logout=button(side,"ĐĂNG XUẤT",13,579,191,45,Theme.RED);
+        logout.addActionListener(e->{if(matchId>=0){error("Rời trận trước khi đăng xuất.");return;}if(GameDialog.confirm(this,"ĐĂNG XUẤT","Bạn muốn đăng xuất khỏi tài khoản?"))net.send("LOGOUT");});
+        text(side,"●   Đã kết nối",28,635,165,24,12,Theme.GREEN,true);
     }
 
     private JPanel lobby(){
@@ -374,14 +384,15 @@ public class ClientApp extends JFrame {
         accept.addActionListener(e->{if(!pendingInvite.isBlank())net.send("ACCEPT",pendingInvite);});
         reject.addActionListener(e->{if(!pendingInvite.isBlank())net.send("REJECT",pendingInvite);pendingInvite="";inviteLabel.setText("Chưa có lời mời");});
 
-        for(int i=0;i<3;i++){
-            int y=380+i*92;
-            RoundedPanel row=panel(p,251,y,910,76);
-            onlineNameLabel[i]=text(row,"—",22,13,280,27,17,Theme.TEXT,true);
-            text(row,"Danh sách người chơi online",22,44,300,20,12,Theme.MUTED,false);
-            JButton c=button(row,"ĐẾN THÁCH ĐẤU",710,15,178,46,Theme.PANEL2);
-            c.addActionListener(e->showScreen("match"));
-        }
+        onlineRows=new JPanel();
+        onlineRows.setLayout(new BoxLayout(onlineRows,BoxLayout.Y_AXIS));
+        onlineRows.setBackground(Theme.BG);
+        JScrollPane onlineScroll=new JScrollPane(onlineRows);
+        onlineScroll.setBounds(251,378,911,311);
+        onlineScroll.setBorder(BorderFactory.createLineBorder(Theme.STROKE));
+        onlineScroll.getVerticalScrollBar().setUnitIncrement(20);
+        p.add(onlineScroll);
+        refreshOnlineRows();
         return p;
     }
 
@@ -527,15 +538,14 @@ public class ClientApp extends JFrame {
         text(p,"LỊCH SỬ TRẬN ĐẤU",251,110,480,42,30,Theme.TEXT,true);
         text(p,"Theo dõi thành tích và tùy chọn hệ thống",253,158,520,24,14,Theme.MUTED,false);
 
-        for(int i=0;i<3;i++){
-            int y=224+i*91;
-            RoundedPanel row=panel(p,251,y,910,76);
-            historyTitle[i]=text(row,"Chưa có dữ liệu",20,12,520,28,16,Theme.TEXT,true);
-            historyMeta[i]=text(row,"—",20,43,520,20,12,Theme.MUTED,false);
-            JLabel badge=text(row,"KẾT QUẢ",710,21,175,30,11,Theme.CYAN,true);
-            badge.setHorizontalAlignment(SwingConstants.CENTER);
-        }
-
+        historyRows=new JPanel();
+        historyRows.setLayout(new BoxLayout(historyRows,BoxLayout.Y_AXIS));
+        historyRows.setBackground(Theme.BG);
+        JScrollPane historyScroll=new JScrollPane(historyRows);
+        historyScroll.setBounds(251,212,910,305);
+        historyScroll.setBorder(BorderFactory.createLineBorder(Theme.STROKE));
+        historyScroll.getVerticalScrollBar().setUnitIncrement(18);
+        p.add(historyScroll);
         RoundedPanel settings=panel(p,251,530,910,172);
         text(settings,"CÀI ĐẶT NHANH",22,17,300,28,17,Theme.TEXT,true);
         text(settings,"Âm thanh trò chơi",22,71,300,24,16,Theme.TEXT,false);
@@ -560,8 +570,7 @@ public class ClientApp extends JFrame {
 
     private void leaveMatch(){
         if(matchId<0)return;
-        int choice=JOptionPane.showConfirmDialog(this,"Rời trận sẽ bị xử thua sau khi bắt đầu. Bạn chắc chắn?","Xác nhận rời trận",JOptionPane.YES_NO_OPTION);
-        if(choice==JOptionPane.YES_OPTION)net.send("LEAVE");
+        if(GameDialog.confirm(this,"RỜI TRẬN","Rời trận khi đang thi đấu sẽ bị tính thua. Bạn có chắc chắn?"))net.send("LEAVE");
     }
 
     private void clearFleet(){
@@ -621,6 +630,8 @@ public class ClientApp extends JFrame {
                 switch(m.type()){
                     case "LEFT_OK" -> {matchId=-1;clearFleet();showScreen("lobby");}
                     case "LOGOUT_OK" -> {username="";matchId=-1;pendingInvite="";onlineUsers.clear();refreshGlobalLabels();showScreen("login");}
+                    case "FRIEND_ADDED" -> info("Đã kết bạn với "+m.get(0));
+                    case "FRIENDS_LIST" -> {friendNames.clear();if(!m.get(0).isBlank())java.util.Collections.addAll(friendNames,m.get(0).split(","));refreshOnlineRows();}
                     case "LOGIN_OK" -> {
                         username=m.get(0);
                         if(lobbyUserLabel!=null)lobbyUserLabel.setText(username);
@@ -649,6 +660,7 @@ public class ClientApp extends JFrame {
                         }
                         if(onlineCountLabel!=null)onlineCountLabel.setText("Người chơi online: "+onlineUsers.size());
                         if(playerSelect!=null){playerSelect.removeAllItems();for(String name:onlineUsers)playerSelect.addItem(name);}
+                        refreshOnlineRows();
                         for(int i=0;i<onlineNameLabel.length;i++)if(onlineNameLabel[i]!=null)onlineNameLabel[i].setText(i<onlineUsers.size()?onlineUsers.get(i):"—");
                         if(challengeField!=null && challengeField.getText().isBlank() && !onlineUsers.isEmpty())
                             challengeField.setText(onlineUsers.get(0));
@@ -689,9 +701,11 @@ public class ClientApp extends JFrame {
                         if(battleStatus!=null)battleStatus.setText(m.get(0).equals(username)?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");
                         showScreen("battle");
                     }
-                    case "TIMER" -> {if(clockLabel!=null)clockLabel.setText(String.format("00:%02d",Integer.parseInt(m.get(0))));}
+                    case "TIMER" -> {timerUntil=System.currentTimeMillis()+Integer.parseInt(m.get(0))*1000L;updateClock();}
                     case "TURN_TIMEOUT" -> {
                         appendBattleLog(m.get(0)+" bỏ lượt lần "+m.get(1)+"/4");
+                        if(clockLabel!=null)clockLabel.setText("00:00");
+                        info((m.get(0).equals(username)?"Bạn":"Đối thủ")+" đã hết 15 giây và bỏ lượt ("+m.get(1)+"/4). Lượt chuyển sang đối thủ.");
                         if(m.get(0).equals(username))myMissedTurns=Integer.parseInt(m.get(1));else enemyMissedTurns=Integer.parseInt(m.get(1));
                         if(missedCountLabel!=null)missedCountLabel.setText("Bỏ lượt: Bạn "+myMissedTurns+"/4 • Đối thủ "+enemyMissedTurns+"/4");
                         if(eventBanner!=null)eventBanner.setText("Hết giờ: "+m.get(0)+" ("+m.get(1)+"/4)");
@@ -719,7 +733,7 @@ public class ClientApp extends JFrame {
                         String ship=m.get(4);
                         String details="["+(mine?"Bạn":"Đối thủ")+"] "+coord+" → "+resultText;
                         if(m.get(3).equals("SUNK"))details+=": "+shipDisplayName(ship);
-                        appendBattleLog(details);
+                        if(hit)appendBattleLog(details);
                         if(eventBanner!=null){
                             eventBanner.setText("<html>"+(m.get(3).equals("SUNK")?(mine?"Bạn đánh chìm ":"Đối thủ đánh chìm ")+shipDisplayName(ship):details)+"</html>");
                             eventBanner.setForeground(m.get(3).equals("SUNK")?Theme.RED:hit?Theme.GREEN:Theme.MUTED);
@@ -748,21 +762,57 @@ public class ClientApp extends JFrame {
                             rankCursor++;
                         }
                     }
-                    case "HISTORY_BEGIN" -> {
-                        historyCursor=0;
-                        for(int i=0;i<3;i++){historyTitle[i].setText("Chưa có dữ liệu");historyMeta[i].setText("—");}
-                    }
-                    case "HISTORY_ROW" -> {
-                        if(historyCursor<3){
-                            historyTitle[historyCursor].setText((m.get(2).equals("WIN")?"THẮNG":"THUA")+" • "+m.get(1));
-                            historyMeta[historyCursor].setText("Match #"+m.get(0)+" • "+m.get(3));
-                            historyCursor++;
-                        }
-                    }
+                    case "HISTORY_BEGIN" -> {storedHistory.clear();refreshHistoryRows();}
+                    case "HISTORY_ROW" -> {storedHistory.add(new String[]{m.get(0),m.get(1),m.get(2),m.get(3)});refreshHistoryRows();}
                     case "INFO" -> info(m.get(0));
                 }
             }catch(Exception e){error(e.getMessage());}
         });
+    }
+
+    private void updateClock(){
+        if(clockLabel==null||matchId<0)return;
+        long ms=Math.max(0,timerUntil-System.currentTimeMillis());
+        clockLabel.setText(String.format("00:%02d",(ms+999)/1000));
+        clockLabel.setForeground(ms<=5000?Theme.RED:Theme.GOLD);
+    }
+
+    private void refreshOnlineRows(){
+        if(onlineRows==null)return;
+        onlineRows.removeAll();
+        if(onlineUsers.isEmpty())onlineRows.add(Components.label("  Chưa có người chơi khác đang online",16,Theme.MUTED,false));
+        for(String player:onlineUsers){
+            JPanel row=new JPanel(new FlowLayout(FlowLayout.LEFT,12,12));
+            row.setBackground(Theme.PANEL);
+            row.setMaximumSize(new Dimension(890,65));
+            JLabel name=Components.label("●  "+player+(friendNames.contains(player)?"  •  Bạn bè":""),15,Theme.TEXT,true);
+            name.setPreferredSize(new Dimension(470,40));row.add(name);
+            JButton invite=Components.button("MỜI CHƠI",Theme.CYAN);
+            invite.setPreferredSize(new Dimension(145,40));
+            invite.addActionListener(e->net.send("CHALLENGE",player));row.add(invite);
+            JButton add=Components.button(friendNames.contains(player)?"ĐÃ KẾT BẠN":"KẾT BẠN",Theme.PANEL2);
+            add.setPreferredSize(new Dimension(150,40));add.setEnabled(!friendNames.contains(player));
+            add.addActionListener(e->net.send("ADD_FRIEND",player));row.add(add);
+            onlineRows.add(row);
+        }
+        onlineRows.revalidate();onlineRows.repaint();
+    }
+
+    private void refreshHistoryRows(){
+        if(historyRows==null)return;
+        historyRows.removeAll();
+        if(storedHistory.isEmpty())historyRows.add(Components.label("  Chưa có trận đấu hoàn thành",16,Theme.MUTED,false));
+        for(String[] h:storedHistory){
+            JPanel row=new JPanel(new BorderLayout(10,8));
+            row.setMaximumSize(new Dimension(887,67));
+            row.setBackground(Theme.PANEL);
+            row.setBorder(BorderFactory.createEmptyBorder(13,15,13,15));
+            JLabel result=Components.label((h[2].equals("WIN")?"THẮNG":"THUA")+" • "+h[1],16,h[2].equals("WIN")?Theme.GREEN:Theme.RED,true);
+            JLabel detail=Components.label("Match #"+h[0]+"  •  "+h[3],13,Theme.MUTED,false);
+            row.add(result,BorderLayout.WEST);row.add(detail,BorderLayout.EAST);
+            historyRows.add(row);
+        }
+        historyRows.revalidate();historyRows.repaint();
     }
 
     private void appendBattleLog(String line){
