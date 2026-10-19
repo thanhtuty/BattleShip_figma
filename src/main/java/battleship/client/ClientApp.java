@@ -731,6 +731,21 @@ public class ClientApp extends JFrame {
                         if(battleStatus!=null){battleStatus.setText(mine?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");battleStatus.setForeground(mine?Theme.CYAN:Theme.GOLD);}
                         enemyBoard.setInteractive(mine);
                     }
+                    case "MATCH_STATE" -> {
+                        if(matchId!=Long.parseLong(m.get(0)))break;
+                        boolean first=username.equals(m.get(3));
+                        int myShips=Integer.parseInt(m.get(first?4:7));
+                        int otherShips=Integer.parseInt(m.get(first?7:4));
+                        myMissedTurns=Integer.parseInt(m.get(first?5:8));
+                        enemyMissedTurns=Integer.parseInt(m.get(first?8:5));
+                        if(myShipsLabel!=null)myShipsLabel.setText("BẠN CÒN: "+myShips+"/5 TÀU");
+                        if(enemyShipsLabel!=null)enemyShipsLabel.setText("ĐỐI THỦ CÒN: "+otherShips+"/5 TÀU");
+                        if(missedCountLabel!=null)missedCountLabel.setText("Bỏ lượt: Bạn "+myMissedTurns+"/4 • Đối thủ "+enemyMissedTurns+"/4");
+                        if(battleStatus!=null)battleStatus.setText(username.equals(m.get(1))?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");
+                        timerUntil=System.currentTimeMillis()+Long.parseLong(m.get(2))*1000L;
+                        turnClockActive=true;updateClock();
+                        enemyBoard.setInteractive(username.equals(m.get(1)));
+                    }
                     case "FLEET_STATE" -> {
                         int myCount=m.get(0).equals(username)?Integer.parseInt(m.get(1)):Integer.parseInt(m.get(3));
                         int enemyCount=m.get(0).equals(username)?Integer.parseInt(m.get(3)):Integer.parseInt(m.get(1));
