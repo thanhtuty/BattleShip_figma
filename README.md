@@ -129,3 +129,17 @@ BATTLESHIP_PORT
 - Server là nguồn quyết định trạng thái trận đấu.
 - Client không tự quyết định HIT/MISS/SUNK.
 - Không commit `config/db.properties` nếu chứa mật khẩu thật.
+
+## Chức năng mở rộng TCP (cập nhật 2026-10)
+
+- **LOGOUT**: phiên online đóng trên Server, Client quay về đăng nhập
+- **LEAVE**: rời phòng chờ sẽ hủy trận; rời trận đang đấu sẽ bị xử thua
+- **Tìm đối thủ**: chọn username trực tiếp trong danh sách online từ Server
+- **Bố trí thủ công**: chọn tàu, chọn ô, chọn hướng ngang/dọc; kiểm tra trùng và vượt biên; nút xếp lại hoặc bố trí ngẫu nhiên
+- **TIMER**: Server phát giây còn lại, mỗi lượt tối đa 15 giây
+- **TURN_TIMEOUT**: hết giờ chuyển lượt; từ lần bỏ thứ tư xử thua
+- **FLEET_STATE**: Server gửi số tàu còn lại của cả hai bên
+- **ATTACK_RESULT**: gồm thông tin tàu bị chìm; UI cập nhật nhật ký bắn
+- **SoundFX**: âm thanh tạo trong Java cho bắn, trúng, trượt, chìm tàu, lời mời, thắng/thua; có nút bật/tắt tại Cài đặt
+
+**Chạy lại cả Server và Client sau khi cập nhật** vì protocol đã thay đổi.
