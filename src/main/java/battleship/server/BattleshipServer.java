@@ -67,7 +67,8 @@ public class BattleshipServer {
         }
     }
 
-    private void login(PlayerSession s,Protocol.Message m)throws SQLException{
+    private synchronized void login(PlayerSession s,Protocol.Message m)throws SQLException{
+        if(s.user()!=null){s.send("LOGIN_FAIL","Phiên này đã đăng nhập");return;}
         var u=users.login(m.get(0),m.get(1));
         if(u==null){s.send("LOGIN_FAIL","Sai tài khoản hoặc mật khẩu");return;}
         if(online.containsKey(u.username())){s.send("LOGIN_FAIL","Tài khoản đang đăng nhập");return;}
@@ -204,7 +205,10 @@ public class BattleshipServer {
 
     private synchronized void logout(PlayerSession s)throws SQLException{
         if(s.matchId()!=null)leave(s);
-        online.remove(s.username(),s);
+        String oldName=s.username();
+        online.remove(oldName,s);
+        invitations.remove(oldName);
+        for(Set<String> pending:invitations.values())pending.remove(oldName);
         s.user(null);
         s.send("LOGOUT_OK");
         broadcastOnline();
