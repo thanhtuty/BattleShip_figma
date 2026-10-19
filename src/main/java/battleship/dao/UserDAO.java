@@ -39,6 +39,18 @@ public class UserDAO {
         }
     }
 
+
+    public User profile(int userId) throws SQLException {
+        try(Connection c=DbConfig.getConnection();
+            PreparedStatement ps=c.prepareStatement("SELECT UserId,Username,Wins,Losses,Rating FROM Users WHERE UserId=?")){
+            ps.setInt(1,userId);
+            try(ResultSet rs=ps.executeQuery()){
+                if(rs.next())return new User(rs.getInt(1),rs.getString(2),rs.getInt(3),rs.getInt(4),rs.getInt(5));
+            }
+        }
+        return null;
+    }
+
     public List<RankRow> ranking(int limit) throws SQLException {
         List<RankRow> out = new ArrayList<>();
         String sql = "SELECT TOP (?) Username,Wins,Losses,Rating,WinRate FROM vw_Ranking ORDER BY Rating DESC,Wins DESC";
