@@ -15,6 +15,15 @@ public class MatchDAO {
         }
     }
 
+    public void cancel(long matchId) {
+        try(Connection c=DbConfig.getConnection();
+            PreparedStatement ps=c.prepareStatement(
+                "UPDATE Matches SET Status='CANCELLED',FinishedAt=SYSDATETIME() WHERE MatchId=? AND Status <> 'FINISHED'")){
+            ps.setLong(1,matchId);
+            ps.executeUpdate();
+        }catch(SQLException e){System.err.println("Failed to cancel match "+matchId+": "+e.getMessage());}
+    }
+
     public void start(long matchId) throws SQLException {
         try (Connection c=DbConfig.getConnection(); PreparedStatement ps=c.prepareStatement(
                 "UPDATE Matches SET Status='IN_GAME',StartedAt=SYSDATETIME() WHERE MatchId=?")) {
