@@ -9,6 +9,12 @@ public class UserDAO {
     public record RankRow(String username, int wins, int losses, int rating, double winRate) {}
 
     public User register(String username, String email, String password) throws SQLException {
+        if(username==null||!username.matches("[\\p{L}\\p{N}_]{3,40}"))
+            throw new SQLException("Tên đăng nhập phải dài 3-40 ký tự, chỉ gồm chữ, số hoặc _");
+        if(password==null||password.length()<6)
+            throw new SQLException("Mật khẩu cần ít nhất 6 ký tự");
+        if(email!=null&&email.length()>120)
+            throw new SQLException("Email quá dài");
         String salt = PasswordUtil.newSalt();
         String hash = PasswordUtil.hash(password, salt);
         String sql = "INSERT INTO Users(Username,Email,PasswordHash,PasswordSalt) OUTPUT INSERTED.UserId VALUES(?,?,?,?)";
