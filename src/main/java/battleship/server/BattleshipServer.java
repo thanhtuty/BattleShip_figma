@@ -161,11 +161,7 @@ public class BattleshipServer {
             for(MatchRoom r:new ArrayList<>(rooms.values())){
                 if(!r.started||r.finished)continue;
                 long remaining=r.turnDeadline-System.currentTimeMillis();
-                if(remaining>0){
-                    r.p1.send("TIMER",String.valueOf((remaining+999)/1000));
-                    r.p2.send("TIMER",String.valueOf((remaining+999)/1000));
-                    continue;
-                }
+                if(remaining>0)continue;
                 PlayerSession late=r.p1.userId()==r.currentUserId?r.p1:r.p2;
                 int times=r.incrementMisses(late);
                 matches.event(r.id,late.userId(),"TURN_TIMEOUT",null,null,String.valueOf(times));
@@ -179,10 +175,9 @@ public class BattleshipServer {
 
     private void sendTurn(MatchRoom r){
         String current=r.p1.userId()==r.currentUserId?r.p1.username():r.p2.username();
-        r.p1.send("TURN",current);
-        r.p2.send("TURN",current);
-        r.p1.send("TIMER","15");
-        r.p2.send("TIMER","15");
+        String deadline=String.valueOf(r.turnDeadline);
+        r.p1.send("TURN",current,deadline);
+        r.p2.send("TURN",current,deadline);
     }
 
     private void endMatch(MatchRoom r,PlayerSession winner,PlayerSession loser,String reason)throws SQLException{
@@ -196,6 +191,7 @@ public class BattleshipServer {
     }
 
     private synchronized void leave(PlayerSession s)throws SQLException{
+        if(s.matchId()==null){s.send("LEFT_OK");return;}
         MatchRoom r=roomOf(s);
         if(r.started)endMatch(r,r.other(s),s,"FORFEIT");
         else{
