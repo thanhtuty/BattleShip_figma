@@ -1,4 +1,7 @@
-# BATTLESHIP – BẢN HOÀN CHỈNH TCP + SQL SERVER
+# BATTLESHIP – TCP + SQL SERVER + FIGMA UI
+
+Giao diện Java Swing được dựng lại theo file Figma:
+https://www.figma.com/design/4R48TgNdyG1eQt7p0eIeI0/Battleship---Complete-Desktop-Game-UI
 
 ## Kiến trúc
 ```text
@@ -9,9 +12,25 @@ Client 1 (Java Swing)
 Client 2 (Java Swing)
 ```
 
-## Chức năng đã có
+## 12 màn hình UI
+1. Chào mừng
+2. Đăng nhập
+3. Đăng ký
+4. Sảnh chính
+5. Tìm trận và thách đấu
+6. Lời mời và bạn bè
+7. Phòng chờ
+8. Đặt tàu
+9. Chiến đấu
+10. Kết quả
+11. Bảng xếp hạng
+12. Lịch sử và cài đặt
+
+Mỗi màn hình dùng canvas 1200x760, tông navy/cyan/orange giống bản Figma.
+
+## Chức năng
 - Đăng ký tài khoản vào SQL Server
-- Đăng nhập bằng mật khẩu salt + SHA-256
+- Đăng nhập bằng salt + SHA-256
 - Chặn đăng nhập trùng
 - Danh sách người chơi online
 - Gửi lời mời thách đấu
@@ -29,21 +48,25 @@ Client 2 (Java Swing)
 - Cập nhật Wins / Losses / Rating
 - Lưu MatchEvents
 - Bảng xếp hạng
-- Lịch sử 20 trận
+- Lịch sử trận đấu
 - Xử lý đối thủ thoát kết nối
-- UI Java Swing theo tông Figma Battleship
 
 ## 1. Tạo database
 Mở SQL Server Management Studio và chạy:
+
 `database/01_BattleShipDB.sql`
 
 ## 2. Cấu hình DB
 Copy:
+
 `config/db.properties.example`
+
 thành:
+
 `config/db.properties`
 
 Sửa:
+
 ```properties
 db.url=jdbc:sqlserver://localhost:1433;databaseName=BattleShipDB;encrypt=true;trustServerCertificate=true
 db.user=sa
@@ -51,39 +74,56 @@ db.password=MAT_KHAU_CUA_BAN
 ```
 
 ## 3. Chạy Server
-NetBeans:
-- Main class: `battleship.server.BattleshipServer`
+NetBeans main class:
+
+`battleship.server.BattleshipServer`
 
 Terminal:
+
 ```bash
 mvn clean compile
 mvn -q exec:java -Dexec.mainClass=battleship.server.BattleshipServer
 ```
 
-Mặc định TCP port: `5050`.
+Mặc định port TCP là `5050`.
 
 ## 4. Chạy Client
-Mở 2 client:
-- Main class: `battleship.client.ClientApp`
+NetBeans main class:
+
+`battleship.client.ClientApp`
 
 Terminal:
+
 ```bash
 mvn -q exec:java -Dexec.mainClass=battleship.client.ClientApp
 ```
 
-Mở lệnh trên ở hai terminal để có Client 1 và Client 2.
+Client mặc định kết nối `127.0.0.1:5050`.
 
-## 5. Test đầy đủ
-1. Client A kết nối 127.0.0.1:5050 và đăng ký A
-2. Client B đăng ký B
-3. Cả hai đăng nhập
-4. A chọn B trong Online -> Thách đấu
-5. B Accept
-6. Hai bên vào Bố trí -> Đặt ngẫu nhiên -> Ready
-7. Server gửi GAME_START và người đi trước
-8. Bắn trên bảng đối thủ
-9. Khi tất cả tàu chìm, Server cập nhật DB
-10. Vào Ranking / History để kiểm tra
+Muốn đổi host/port mà không sửa UI:
+
+```bash
+mvn -q exec:java -Dexec.mainClass=battleship.client.ClientApp -Dbattleship.host=192.168.1.10 -Dbattleship.port=5050
+```
+
+Hoặc dùng biến môi trường:
+
+```text
+BATTLESHIP_HOST
+BATTLESHIP_PORT
+```
+
+## 5. Test 2 Client
+1. Chạy Server
+2. Mở Client A và Client B
+3. Đăng ký hai tài khoản
+4. Cả hai đăng nhập
+5. Vào Tìm đối thủ hoặc Thách đấu
+6. Người nhận Accept
+7. Hai bên bố trí tàu và Ready
+8. Server phát GAME_START
+9. Bắn theo lượt cho tới GAME_OVER
+10. Kiểm tra Ranking và History
 
 ## Ghi chú
 - Server là nguồn quyết định trạng thái trận đấu.
