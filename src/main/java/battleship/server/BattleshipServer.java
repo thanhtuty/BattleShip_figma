@@ -37,7 +37,7 @@ public class BattleshipServer {
         switch(m.type()){
             case "REGISTER" -> register(s,m);
             case "LOGIN" -> login(s,m);
-            case "LOGOUT" -> disconnect(s);
+            case "LOGOUT" -> {s.send("ERROR","Hãy đóng client để kết thúc phiên.");}
             case "ONLINE" -> sendOnline(s);
             case "CHALLENGE" -> challenge(s,m.get(0));
             case "ACCEPT" -> accept(s,m.get(0));
@@ -82,7 +82,7 @@ public class BattleshipServer {
         s.send("INFO","Đã gửi lời mời tới "+target);
     }
 
-    private void accept(PlayerSession s,String challenger)throws SQLException{
+    private synchronized void accept(PlayerSession s,String challenger)throws SQLException{
         requireLogin(s);
         PlayerSession c=online.get(challenger);
         if(c==null){s.send("ERROR","Người thách đấu đã offline");return;}
@@ -103,7 +103,7 @@ public class BattleshipServer {
         if(c!=null)c.send("INVITE_REJECTED",s.username());
     }
 
-    private void ready(PlayerSession s,String fleet)throws SQLException{
+    private synchronized void ready(PlayerSession s,String fleet)throws SQLException{
         MatchRoom r=roomOf(s);
         if(r.started || r.ready(s)){s.send("ERROR","Đã sẵn sàng hoặc trận đã bắt đầu");return;}
         Board b=FleetCodec.toBoard(fleet);
@@ -119,7 +119,7 @@ public class BattleshipServer {
         }
     }
 
-    private void attack(PlayerSession s,int row,int col)throws SQLException{
+    private synchronized void attack(PlayerSession s,int row,int col)throws SQLException{
         MatchRoom r=roomOf(s);
         if(!r.started||r.finished){s.send("ERROR","Trận chưa bắt đầu hoặc đã kết thúc");return;}
         if(r.currentUserId!=s.userId()){s.send("ERROR","Chưa đến lượt của bạn");return;}
@@ -194,6 +194,7 @@ public class BattleshipServer {
         if(mid!=null){
             MatchRoom r=rooms.remove(mid);
             if(r!=null&&!r.finished){
+                matches.cancel(r.id);
                 PlayerSession other=r.other(s);
                 other.send("OPPONENT_LEFT",s.username());
                 other.matchId(null);
