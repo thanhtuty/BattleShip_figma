@@ -47,6 +47,7 @@ public class ClientApp extends JFrame {
     private final JLabel[] rankRate=new JLabel[5];
     private int rankCursor=0;
 
+    private final JLabel[] onlineNameLabel=new JLabel[3];
     private final JLabel[] historyTitle=new JLabel[3];
     private final JLabel[] historyMeta=new JLabel[3];
     private int historyCursor=0;
@@ -358,14 +359,12 @@ public class ClientApp extends JFrame {
         accept.addActionListener(e->{if(!pendingInvite.isBlank())net.send("ACCEPT",pendingInvite);});
         reject.addActionListener(e->{if(!pendingInvite.isBlank())net.send("REJECT",pendingInvite);pendingInvite="";inviteLabel.setText("Chưa có lời mời");});
 
-        String[] demos={"—","—","—"};
         for(int i=0;i<3;i++){
             int y=380+i*92;
             RoundedPanel row=panel(p,251,y,910,76);
-            text(row,demos[i],22,13,280,27,17,Theme.TEXT,true);
+            onlineNameLabel[i]=text(row,"—",22,13,280,27,17,Theme.TEXT,true);
             text(row,"Danh sách người chơi online",22,44,300,20,12,Theme.MUTED,false);
             JButton c=button(row,"ĐẾN THÁCH ĐẤU",710,15,178,46,Theme.PANEL2);
-            String name=demos[i];
             c.addActionListener(e->showScreen("match"));
         }
         return p;
@@ -581,6 +580,7 @@ public class ClientApp extends JFrame {
                             for(String n:m.get(0).split(",")) if(!n.equals(username)) onlineUsers.add(n);
                         }
                         if(onlineCountLabel!=null)onlineCountLabel.setText("Người chơi online: "+onlineUsers.size());
+                        for(int i=0;i<onlineNameLabel.length;i++)if(onlineNameLabel[i]!=null)onlineNameLabel[i].setText(i<onlineUsers.size()?onlineUsers.get(i):"—");
                         if(challengeField!=null && challengeField.getText().isBlank() && !onlineUsers.isEmpty())
                             challengeField.setText(onlineUsers.get(0));
                     }
