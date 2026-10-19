@@ -28,6 +28,8 @@ public class ClientApp extends JFrame {
 
     private JLabel globalOnlineLabel;
     private JLabel lobbyUserLabel;
+    private JLabel lobbyWinRateLabel;
+    private final JLabel[] statValue=new JLabel[4];
     private JLabel onlineCountLabel;
     private JLabel inviteLabel;
     private JLabel roomPlayer1;
@@ -266,6 +268,7 @@ public class ClientApp extends JFrame {
             final int idx=i;
             b.addActionListener(e->{
                 if(idx==3)net.send("HISTORY");
+                if(idx==0)net.send("PROFILE");
                 if(idx==4)net.send("RANKING");
                 showScreen(targets[idx]);
             });
@@ -290,16 +293,16 @@ public class ClientApp extends JFrame {
         RoundedPanel profile=panel(p,847,224,321,215);
         text(profile,"HỒ SƠ THUYỀN TRƯỞNG",22,20,280,27,17,Theme.TEXT,true);
         lobbyUserLabel=text(profile,"Captain_01",22,73,270,32,22,Theme.TEXT,true);
-        text(profile,"Cấp 12   •   Đại úy",22,118,260,24,14,Theme.MUTED,false);
-        text(profile,"Tỉ lệ thắng: cập nhật từ server",22,159,280,24,15,Theme.GREEN,true);
+        text(profile,"Thống kê từ SQL Server",22,118,260,24,14,Theme.MUTED,false);
+        lobbyWinRateLabel=text(profile,"Đang tải...",22,159,280,24,15,Theme.GREEN,true);
 
         RoundedPanel stats=panel(p,251,466,917,232);
         text(stats,"THỐNG KÊ MÙA GIẢI",22,18,300,28,18,Theme.TEXT,true);
-        String[][] st={{"28","TRẬN ĐẤU"},{"19","CHIẾN THẮNG"},{"09","THẤT BẠI"},{"1280","ĐIỂM RANK"}};
+        String[][] st={{"—","TRẬN ĐẤU"},{"—","CHIẾN THẮNG"},{"—","THẤT BẠI"},{"—","ĐIỂM RANK"}};
         for(int i=0;i<4;i++){
             RoundedPanel c=new RoundedPanel(null,Theme.PANEL2,null,14);
             c.setBounds(22+i*220,67,202,116);stats.add(c);
-            text(c,st[i][0],18,13,160,40,31,Theme.CYAN,true);
+            statValue[i]=text(c,st[i][0],18,13,160,40,31,Theme.CYAN,true);
             text(c,st[i][1],18,68,160,22,11,Theme.MUTED,true);
         }
         return p;
@@ -563,8 +566,10 @@ public class ClientApp extends JFrame {
                         if(lobbyUserLabel!=null)lobbyUserLabel.setText(username);
                         refreshGlobalLabels();
                         net.send("ONLINE");
+                        net.send("PROFILE");
                         showScreen("lobby");
                     }
+                    case "PROFILE_DATA" -> updateProfile(m);
                     case "LOGIN_FAIL","REGISTER_FAIL","ERROR" -> error(m.get(0));
                     case "REGISTER_OK" -> {
                         info("Đăng ký thành công. Hãy đăng nhập.");
@@ -655,11 +660,19 @@ public class ClientApp extends JFrame {
         });
     }
 
+    private void updateProfile(Protocol.Message m){
+        int wins=Integer.parseInt(m.get(1)),losses=Integer.parseInt(m.get(2)),rating=Integer.parseInt(m.get(3));
+        if(lobbyUserLabel!=null)lobbyUserLabel.setText(m.get(0));
+        String[] vals={""+(wins+losses),""+wins,""+losses,""+rating};
+        for(int i=0;i<4;i++)if(statValue[i]!=null)statValue[i].setText(vals[i]);
+        if(lobbyWinRateLabel!=null)lobbyWinRateLabel.setText(
+            String.format("Tỉ lệ thắng: %.1f%%",wins+losses==0?0.0:(100.0*wins/(wins+losses))));
+    }
     private void error(String s){
-        JOptionPane.showMessageDialog(this,s==null?"Lỗi không xác định":s,"Lỗi",JOptionPane.ERROR_MESSAGE);
+        GameDialog.show(this,"Lỗi",s==null?"Lỗi không xác định":s,true);
     }
 
     private void info(String s){
-        JOptionPane.showMessageDialog(this,s,"Thông báo",JOptionPane.INFORMATION_MESSAGE);
+        GameDialog.show(this,"Thông báo",s,false);
     }
 }
