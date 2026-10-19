@@ -719,7 +719,7 @@ public class ClientApp extends JFrame {
                         if(eventBanner!=null)eventBanner.setText("Hết giờ: "+m.get(0)+" ("+m.get(1)+"/4)");
                     }
                     case "TURN" -> {
-                        timerUntil=Long.parseLong(m.get(1));turnClockActive=true;updateClock();
+                        timerUntil=System.currentTimeMillis()+Long.parseLong(m.get(1))*1000L;turnClockActive=true;updateClock();
                         boolean mine=m.get(0).equals(username);
                         if(battleStatus!=null){battleStatus.setText(mine?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");battleStatus.setForeground(mine?Theme.CYAN:Theme.GOLD);}
                         enemyBoard.setInteractive(mine);
