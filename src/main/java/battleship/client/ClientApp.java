@@ -182,7 +182,7 @@ public class ClientApp extends JFrame {
         preview.setInteractive(false);
         preview.setBounds(690,74,preview.boardPixelSize(),preview.boardPixelSize());
         hero.add(preview);
-        int[][] demo={{0,1,5,1},{5,3,4,0},{1,6,3,1},{8,7,2,0},{4,9,2,1}};
+        int[][] demo={{0,1,5,1},{5,3,4,0},{1,6,3,1},{8,7,2,0},{4,8,2,1}};
         for(int[] s:demo)for(int k=0;k<s[2];k++)preview.ship(s[0]+(s[3]==1?0:k),s[1]+(s[3]==1?k:0));
         return p;
     }
