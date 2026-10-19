@@ -293,7 +293,7 @@ public class ClientApp extends JFrame {
         RoundedPanel profile=panel(p,847,224,321,215);
         text(profile,"HỒ SƠ THUYỀN TRƯỞNG",22,20,280,27,17,Theme.TEXT,true);
         lobbyUserLabel=text(profile,"Captain_01",22,73,270,32,22,Theme.TEXT,true);
-        text(profile,"Thống kê từ SQL Server",22,118,260,24,14,Theme.MUTED,false);
+        text(profile,"Thành tích cá nhân",22,118,260,24,14,Theme.MUTED,false);
         lobbyWinRateLabel=text(profile,"Đang tải...",22,159,280,24,15,Theme.GREEN,true);
 
         RoundedPanel stats=panel(p,251,466,917,232);
@@ -346,7 +346,7 @@ public class ClientApp extends JFrame {
         text(p,"BẠN BÈ & LỜI MỜI",251,111,500,42,30,Theme.TEXT,true);
         text(p,"Quản lý lời mời trận đấu trực tuyến",253,158,500,26,14,Theme.MUTED,false);
 
-        text(p,"LỜI MỜI ĐẾN (1)",251,208,165,32,12,Theme.TEXT,true);
+        text(p,"LỜI MỜI ĐẾN",251,208,165,32,12,Theme.TEXT,true);
         text(p,"BẠN BÈ / ONLINE",440,208,165,32,12,Theme.MUTED,true);
 
         RoundedPanel invite=panel(p,251,270,910,82);
@@ -358,15 +358,15 @@ public class ClientApp extends JFrame {
         accept.addActionListener(e->{if(!pendingInvite.isBlank())net.send("ACCEPT",pendingInvite);});
         reject.addActionListener(e->{if(!pendingInvite.isBlank())net.send("REJECT",pendingInvite);pendingInvite="";inviteLabel.setText("Chưa có lời mời");});
 
-        String[] demos={"SeaHunter","Admiral_X","BlueWhale"};
+        String[] demos={"—","—","—"};
         for(int i=0;i<3;i++){
             int y=380+i*92;
             RoundedPanel row=panel(p,251,y,910,76);
             text(row,demos[i],22,13,280,27,17,Theme.TEXT,true);
-            text(row,i==2?"Đang trong trận":"Đang online",22,44,260,20,12,Theme.MUTED,false);
-            JButton c=button(row,i==2?"HỒ SƠ":"THÁCH ĐẤU",710,15,178,46,Theme.PANEL2);
+            text(row,"Danh sách người chơi online",22,44,300,20,12,Theme.MUTED,false);
+            JButton c=button(row,"ĐẾN THÁCH ĐẤU",710,15,178,46,Theme.PANEL2);
             String name=demos[i];
-            c.addActionListener(e->{if(!name.equals("BlueWhale"))net.send("CHALLENGE",name);});
+            c.addActionListener(e->showScreen("match"));
         }
         return p;
     }
@@ -390,8 +390,8 @@ public class ClientApp extends JFrame {
         roomState2=text(b,"● Chưa sẵn sàng",36,154,350,28,16,Theme.GOLD,false);
         button(b,"ĐANG CHỜ...",36,218,303,54,Theme.PANEL2).setEnabled(false);
 
-        JButton leave=button(p,"RỜI PHÒNG",516,664,168,48,Theme.RED);
-        leave.addActionListener(e->showScreen("lobby"));
+        JButton leave=button(p,"ĐANG CHỜ READY",516,664,168,48,Theme.PANEL2);
+        leave.setEnabled(false);
         return p;
     }
 
@@ -447,8 +447,8 @@ public class ClientApp extends JFrame {
         text(mid,"○ Bắn trượt",22,260,200,22,12,Theme.TEXT,false);
         text(mid,"Hit/Sunk: giữ lượt",22,306,220,22,11,Theme.MUTED,false);
 
-        JButton leave=button(p,"RỜI TRẬN",518,667,160,46,Theme.PANEL2);
-        leave.addActionListener(e->showScreen("lobby"));
+        JButton leave=button(p,"ĐANG THI ĐẤU",518,667,160,46,Theme.PANEL2);
+        leave.setEnabled(false);
         return p;
     }
 
@@ -507,9 +507,9 @@ public class ClientApp extends JFrame {
         RoundedPanel settings=panel(p,251,530,910,172);
         text(settings,"CÀI ĐẶT NHANH",22,17,300,28,17,Theme.TEXT,true);
         text(settings,"Âm thanh trò chơi",22,71,300,24,16,Theme.TEXT,false);
-        text(settings,"BẬT",790,67,90,30,12,Theme.GREEN,true).setHorizontalAlignment(SwingConstants.CENTER);
+        text(settings,"CHƯA HỖ TRỢ",770,67,125,30,12,Theme.MUTED,true).setHorizontalAlignment(SwingConstants.CENTER);
         text(settings,"Thông báo thách đấu",22,126,300,24,16,Theme.TEXT,false);
-        text(settings,"BẬT",790,122,90,30,12,Theme.GREEN,true).setHorizontalAlignment(SwingConstants.CENTER);
+        text(settings,"CHƯA HỖ TRỢ",770,122,125,30,12,Theme.MUTED,true).setHorizontalAlignment(SwingConstants.CENTER);
         return p;
     }
 
