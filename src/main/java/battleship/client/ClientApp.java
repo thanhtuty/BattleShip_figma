@@ -37,6 +37,10 @@ public class ClientApp extends JFrame {
     private JLabel roomState1;
     private JLabel roomState2;
     private JLabel battleStatus;
+    private JLabel clockLabel;
+    private JComboBox<String> playerSelect;
+    private JComboBox<String> shipSelect;
+    private boolean horizontal=true;
     private JLabel myShipsLabel;
     private JLabel enemyShipsLabel;
     private JLabel eventBanner;
@@ -76,6 +80,7 @@ public class ClientApp extends JFrame {
         setLocationRelativeTo(null);
 
         net.addListener(this::message);
+        placementBoard.onClick(this::placeShip);
         enemyBoard.onClick((r,c)->{
             if(net.isConnected()) net.send("ATTACK",String.valueOf(r),String.valueOf(c));
         });
@@ -334,11 +339,14 @@ public class ClientApp extends JFrame {
 
         RoundedPanel direct=panel(p,251,475,917,217);
         text(direct,"THÁCH ĐẤU NGƯỜI CHƠI",22,20,360,28,18,Theme.TEXT,true);
+        playerSelect=new JComboBox<>();
+        playerSelect.setBackground(Theme.NAV);
+        playerSelect.setForeground(Theme.TEXT);
         challengeField=Components.field();
-        place(direct,challengeField,22,88,590,54);
+        place(direct,playerSelect,22,88,590,54);
         JButton send=button(direct,"GỬI LỜI MỜI",631,88,254,54,Theme.GOLD);
         send.addActionListener(e->{
-            String target=challengeField.getText().trim();
+            String target=playerSelect.getSelectedItem()==null?"":playerSelect.getSelectedItem().toString();
             if(target.isBlank()){error("Nhập username đối thủ.");return;}
             net.send("CHALLENGE",target);
         });
@@ -393,8 +401,7 @@ public class ClientApp extends JFrame {
         roomState2=text(b,"● Chưa sẵn sàng",36,154,350,28,16,Theme.GOLD,false);
         button(b,"ĐANG CHỜ...",36,218,303,54,Theme.PANEL2).setEnabled(false);
 
-        JButton leave=button(p,"ĐANG CHỜ READY",516,664,168,48,Theme.PANEL2);
-        leave.setEnabled(false);
+        button(p,"RỜI PHÒNG",516,664,168,48,Theme.RED).addActionListener(e->leaveMatch());
         return p;
     }
 
@@ -416,6 +423,12 @@ public class ClientApp extends JFrame {
             text(row,ships[i][1],410,13,60,24,13,Theme.CYAN,true);
         }
 
+        shipSelect=new JComboBox<>(new String[]{"Carrier","Battleship","Cruiser","Destroyer","Patrol"});
+        shipSelect.setBackground(Theme.NAV);shipSelect.setForeground(Theme.TEXT);
+        place(p,shipSelect,589,650,185,48);
+        JButton rotate=button(p,"XOAY: NGANG",599,578,174,42,Theme.PANEL2);
+        rotate.addActionListener(e->{horizontal=!horizontal;rotate.setText(horizontal?"XOAY: NGANG":"XOAY: DỌC");});
+        button(p,"XẾP LẠI",790,578,138,42,Theme.RED).addActionListener(e->clearFleet());
         JButton random=button(p,"ĐẶT NGẪU NHIÊN",788,656,190,50,Theme.GOLD);
         JButton ready=button(p,"SẴN SÀNG",996,656,166,50,Theme.CYAN);
         random.addActionListener(e->randomFleet());
@@ -432,6 +445,7 @@ public class ClientApp extends JFrame {
         text(p,"TRẬN ĐẤU",48,109,430,42,30,Theme.TEXT,true);
         text(p,"Chọn ô trên vùng biển đối thủ để khai hỏa",50,157,550,25,14,Theme.MUTED,false);
         battleStatus=text(p,"ĐANG CHỜ LƯỢT",958,121,196,30,12,Theme.TEXT,true);
+        clockLabel=text(p,"00:15",830,121,120,30,20,Theme.GOLD,true);
 
         text(p,"HẠM ĐỘI CỦA BẠN",80,211,300,28,17,Theme.CYAN,true);
         text(p,"VÙNG BIỂN ĐỐI THỦ",746,211,300,28,17,Theme.GOLD,true);
@@ -463,8 +477,7 @@ public class ClientApp extends JFrame {
         scroll.setBounds(14,222,274,176);
         mid.add(scroll);
 
-        JButton leave=button(p,"ĐANG THI ĐẤU",518,667,160,46,Theme.PANEL2);
-        leave.setEnabled(false);
+        button(p,"RỜI TRẬN",518,667,160,46,Theme.RED).addActionListener(e->leaveMatch());
         return p;
     }
 
@@ -523,7 +536,8 @@ public class ClientApp extends JFrame {
         RoundedPanel settings=panel(p,251,530,910,172);
         text(settings,"CÀI ĐẶT NHANH",22,17,300,28,17,Theme.TEXT,true);
         text(settings,"Âm thanh trò chơi",22,71,300,24,16,Theme.TEXT,false);
-        text(settings,"CHƯA HỖ TRỢ",770,67,125,30,12,Theme.MUTED,true).setHorizontalAlignment(SwingConstants.CENTER);
+        JButton sound=button(settings,"ÂM THANH: BẬT",745,61,147,42,Theme.PANEL2);
+        sound.addActionListener(e->{SoundFX.enabled(!SoundFX.enabled());sound.setText(SoundFX.enabled()?"ÂM THANH: BẬT":"ÂM THANH: TẮT");});
         text(settings,"Thông báo thách đấu",22,126,300,24,16,Theme.TEXT,false);
         text(settings,"CHƯA HỖ TRỢ",770,122,125,30,12,Theme.MUTED,true).setHorizontalAlignment(SwingConstants.CENTER);
         return p;
