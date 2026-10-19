@@ -37,6 +37,10 @@ public class ClientApp extends JFrame {
     private JLabel roomState1;
     private JLabel roomState2;
     private JLabel battleStatus;
+    private JLabel myShipsLabel;
+    private JLabel enemyShipsLabel;
+    private JLabel eventBanner;
+    private JTextArea battleLog;
     private JLabel resultTitle;
     private JLabel resultPlayers;
     private JTextField challengeField;
@@ -436,15 +440,28 @@ public class ClientApp extends JFrame {
         enemyBoard.setBounds(727,247,enemyBoard.boardPixelSize(),enemyBoard.boardPixelSize());
         p.add(ownBoard);p.add(enemyBoard);
 
-        RoundedPanel mid=panel(p,457,242,271,367);
-        text(mid,"THÔNG TIN TRẬN",22,20,220,28,16,Theme.TEXT,true);
-        text(mid,"Match",22,73,220,24,14,Theme.MUTED,false);
-        text(mid,"Bạn: 5 tàu",22,118,220,24,14,Theme.GREEN,false);
-        text(mid,"Đối thủ: 5 tàu",22,158,220,24,14,Theme.GOLD,false);
-        JPanel line=new JPanel();line.setBackground(Theme.STROKE);line.setBounds(20,205,230,1);mid.add(line);
-        text(mid,"● Bắn trúng",22,226,200,22,12,Theme.RED,false);
-        text(mid,"○ Bắn trượt",22,260,200,22,12,Theme.TEXT,false);
-        text(mid,"Hit/Sunk: giữ lượt",22,306,220,22,11,Theme.MUTED,false);
+        RoundedPanel mid=panel(p,426,240,302,413);
+        text(mid,"CẬP NHẬT TRẬN ĐẤU",14,14,276,30,16,Theme.CYAN,true);
+        JLabel matchLabel=text(mid,"Match ID: cập nhật khi ghép trận",14,47,274,21,11,Theme.MUTED,false);
+        matchLabel.setName("matchInfoLabel");
+        myShipsLabel=text(mid,"BẠN CÒN: 5/5 TÀU",14,81,274,25,14,Theme.GREEN,true);
+        enemyShipsLabel=text(mid,"ĐỐI THỦ CÒN: 5/5 TÀU",14,111,274,25,14,Theme.GOLD,true);
+        eventBanner=text(mid,"Đang chờ khai hỏa...",14,148,274,39,12,Theme.CYAN,true);
+        text(mid,"NHẬT KÝ PHÁT BẮN",14,193,274,23,13,Theme.TEXT,true);
+        battleLog=new JTextArea();
+        battleLog.setEditable(false);
+        battleLog.setLineWrap(true);
+        battleLog.setWrapStyleWord(true);
+        battleLog.setBackground(Theme.NAV);
+        battleLog.setForeground(Theme.TEXT);
+        battleLog.setCaretColor(Theme.CYAN);
+        battleLog.setFont(Theme.font(12,false));
+        battleLog.setBorder(BorderFactory.createEmptyBorder(8,9,8,9));
+        JScrollPane scroll=new JScrollPane(battleLog);
+        scroll.setBorder(BorderFactory.createLineBorder(Theme.STROKE));
+        scroll.getVerticalScrollBar().setUnitIncrement(12);
+        scroll.setBounds(14,222,274,176);
+        mid.add(scroll);
 
         JButton leave=button(p,"ĐANG THI ĐẤU",518,667,160,46,Theme.PANEL2);
         leave.setEnabled(false);
@@ -615,6 +632,11 @@ public class ClientApp extends JFrame {
                     }
                     case "GAME_START" -> {
                         enemyBoard.clear(false);
+                        if(battleLog!=null)battleLog.setText("");
+                        if(myShipsLabel!=null)myShipsLabel.setText("BẠN CÒN: 5/5 TÀU");
+                        if(enemyShipsLabel!=null)enemyShipsLabel.setText("ĐỐI THỦ CÒN: 5/5 TÀU");
+                        if(eventBanner!=null)eventBanner.setText("Trận đấu bắt đầu!");
+                        appendBattleLog("Bắt đầu trận #"+matchId+" • lượt đầu: "+m.get(0));
                         enemyBoard.setInteractive(m.get(0).equals(username));
                         if(battleStatus!=null)battleStatus.setText(m.get(0).equals(username)?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");
                         showScreen("battle");
@@ -624,11 +646,28 @@ public class ClientApp extends JFrame {
                         if(battleStatus!=null){battleStatus.setText(mine?"LƯỢT CỦA BẠN":"LƯỢT ĐỐI THỦ");battleStatus.setForeground(mine?Theme.CYAN:Theme.GOLD);}
                         enemyBoard.setInteractive(mine);
                     }
+                    case "FLEET_STATE" -> {
+                        int myCount=m.get(0).equals(username)?Integer.parseInt(m.get(1)):Integer.parseInt(m.get(3));
+                        int enemyCount=m.get(0).equals(username)?Integer.parseInt(m.get(3)):Integer.parseInt(m.get(1));
+                        if(myShipsLabel!=null)myShipsLabel.setText("BẠN CÒN: "+myCount+"/5 TÀU");
+                        if(enemyShipsLabel!=null)enemyShipsLabel.setText("ĐỐI THỦ CÒN: "+enemyCount+"/5 TÀU");
+                    }
                     case "ATTACK_RESULT" -> {
                         String shooter=m.get(0);
                         int r=Integer.parseInt(m.get(1)),c=Integer.parseInt(m.get(2));
                         boolean hit=!m.get(3).equals("MISS");
-                        if(shooter.equals(username))enemyBoard.shot(r,c,hit);else ownBoard.shot(r,c,hit);
+                        boolean mine=shooter.equals(username);
+                        if(mine)enemyBoard.shot(r,c,hit);else ownBoard.shot(r,c,hit);
+                        String coord=""+(char)('A'+c)+(r+1);
+                        String resultText=m.get(3).equals("MISS")?"TRƯỢT":m.get(3).equals("HIT")?"TRÚNG":"CHÌM TÀU";
+                        String ship=m.get(4);
+                        String details="["+(mine?"Bạn":"Đối thủ")+"] "+coord+" → "+resultText;
+                        if(m.get(3).equals("SUNK"))details+=": "+shipDisplayName(ship);
+                        appendBattleLog(details);
+                        if(eventBanner!=null){
+                            eventBanner.setText("<html>"+(m.get(3).equals("SUNK")?(mine?"Bạn đánh chìm ":"Đối thủ đánh chìm ")+shipDisplayName(ship):details)+"</html>");
+                            eventBanner.setForeground(m.get(3).equals("SUNK")?Theme.RED:hit?Theme.GREEN:Theme.MUTED);
+                        }
                     }
                     case "GAME_OVER" -> {
                         net.send("PROFILE");
@@ -666,6 +705,24 @@ public class ClientApp extends JFrame {
                 }
             }catch(Exception e){error(e.getMessage());}
         });
+    }
+
+    private void appendBattleLog(String line){
+        if(battleLog==null)return;
+        String time=java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+        battleLog.append("["+time+"] "+line+"\n");
+        battleLog.setCaretPosition(battleLog.getDocument().getLength());
+    }
+
+    private String shipDisplayName(String name){
+        return switch(name){
+            case "Carrier" -> "Tàu sân bay";
+            case "Battleship" -> "Thiết giáp hạm";
+            case "Cruiser" -> "Tuần dương hạm";
+            case "Destroyer" -> "Tàu khu trục";
+            case "Patrol" -> "Tàu tuần tra";
+            default -> name;
+        };
     }
 
     private void updateProfile(Protocol.Message m){
