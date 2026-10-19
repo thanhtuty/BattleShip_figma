@@ -179,6 +179,7 @@ public class BattleshipServer {
         String remaining=String.valueOf(Math.max(0,(r.turnDeadline-System.currentTimeMillis()+999)/1000));
         r.p1.send("TURN",current,remaining);
         r.p2.send("TURN",current,remaining);
+        sendMatchState(r);
     }
 
     private void endMatch(MatchRoom r,PlayerSession winner,PlayerSession loser,String reason)throws SQLException{
@@ -212,6 +213,18 @@ public class BattleshipServer {
         s.user(null);
         s.send("LOGOUT_OK");
         broadcastOnline();
+    }
+
+    private void sendMatchState(MatchRoom r){
+        String[] data={
+            String.valueOf(r.id),
+            r.p1.userId()==r.currentUserId?r.p1.username():r.p2.username(),
+            String.valueOf(Math.max(0,(r.turnDeadline-System.currentTimeMillis()+999)/1000)),
+            r.p1.username(),String.valueOf(r.b1.remainingShips()),String.valueOf(r.misses1),
+            r.p2.username(),String.valueOf(r.b2.remainingShips()),String.valueOf(r.misses2)
+        };
+        r.p1.send("MATCH_STATE",data);
+        r.p2.send("MATCH_STATE",data);
     }
 
     private void sendFleetState(MatchRoom r){
