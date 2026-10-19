@@ -1,0 +1,5 @@
+target/
+config/db.properties
+*.class
+.idea/
+nbproject/private/
