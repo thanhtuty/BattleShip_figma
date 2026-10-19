@@ -116,6 +116,7 @@ public class BattleshipServer {
             String first=r.currentUserId==r.p1.userId()?r.p1.username():r.p2.username();
             r.p1.send("GAME_START",first);
             r.p2.send("GAME_START",first);
+            sendFleetState(r);
         }
     }
 
@@ -127,11 +128,13 @@ public class BattleshipServer {
         Board.Shot result=enemy.attack(row,col);
         if(result==Board.Shot.ALREADY){s.send("ERROR","Ô này đã bắn");return;}
         PlayerSession target=r.other(s);
-        matches.event(r.id,s.userId(),"ATTACK",row,col,result.name());
+        String shipName=result==Board.Shot.SUNK?enemy.lastSunkShip():"";
+        matches.event(r.id,s.userId(),"ATTACK",row,col,result==Board.Shot.SUNK?"SUNK:"+shipName:result.name());
 
-        s.send("ATTACK_RESULT",s.username(),String.valueOf(row),String.valueOf(col),result.name());
+        s.send("ATTACK_RESULT",s.username(),String.valueOf(row),String.valueOf(col),result.name(),shipName);
         target.send("ATTACK_RESULT",s.username(),String.valueOf(row),String.valueOf(col),result.name());
 
+        sendFleetState(r);
         if(enemy.allSunk()){
             r.finished=true;
             matches.finish(r.id,s.userId(),target.userId());
@@ -148,6 +151,12 @@ public class BattleshipServer {
         r.p1.send("TURN",current);r.p2.send("TURN",current);
     }
 
+
+    private void sendFleetState(MatchRoom r){
+        String a=String.valueOf(r.b1.remainingShips()),b=String.valueOf(r.b2.remainingShips());
+        r.p1.send("FLEET_STATE",r.p1.username(),a,r.p2.username(),b);
+        r.p2.send("FLEET_STATE",r.p1.username(),a,r.p2.username(),b);
+    }
 
     private void profile(PlayerSession s)throws SQLException{
         requireLogin(s);
